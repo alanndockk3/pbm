@@ -1,10 +1,57 @@
-import Image from "next/image";
+'use client'
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Heart, Sparkles, Gift, Scissors, Palette, Star } from "lucide-react";
+import { LoginModal } from '@/components/login-modal';
+import { SignupModal } from '@/components/signup-modal';
+import { useAuthStore } from '../../lib/auth/useAuthStore';
 
 export default function Home() {
+  const router = useRouter();
+  const { user, loading } = useAuthStore();
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isSignupOpen, setIsSignupOpen] = useState(false);
+
+  // Redirect to dashboard if user is authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  const handleSwitchToSignup = () => {
+    setIsLoginOpen(false);
+    setIsSignupOpen(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setIsSignupOpen(false);
+    setIsLoginOpen(true);
+  };
+
+  // Show loading or redirect if user is authenticated
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Heart className="w-8 h-8 text-white" />
+          </div>
+          <p className="text-rose-700 dark:text-rose-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render the homepage if user is authenticated (will redirect)
+  if (user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
       {/* Header */}
@@ -19,10 +66,17 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100">
+          <Button 
+            variant="ghost" 
+            className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100"
+            onClick={() => setIsLoginOpen(true)}
+          >
             Login
           </Button>
-          <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg">
+          <Button 
+            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg"
+            onClick={() => setIsSignupOpen(true)}
+          >
             Sign Up
           </Button>
         </div>
@@ -152,7 +206,12 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-              <Button size="lg" variant="secondary" className="bg-white text-purple-700 hover:bg-pink-50 px-8 py-6 text-lg shadow-lg">
+              <Button 
+                size="lg" 
+                variant="secondary" 
+                className="bg-white text-purple-700 hover:bg-pink-50 px-8 py-6 text-lg shadow-lg"
+                onClick={() => setIsSignupOpen(true)}
+              >
                 Create Account
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
@@ -208,6 +267,18 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Modals */}
+      <LoginModal 
+        isOpen={isLoginOpen} 
+        onClose={() => setIsLoginOpen(false)}
+        onSwitchToSignup={handleSwitchToSignup}
+      />
+      <SignupModal 
+        isOpen={isSignupOpen} 
+        onClose={() => setIsSignupOpen(false)}
+        onSwitchToLogin={handleSwitchToLogin}
+      />
     </div>
   );
 }
