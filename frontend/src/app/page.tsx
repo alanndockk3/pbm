@@ -5,21 +5,46 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Heart, Sparkles, Gift, Scissors, Palette, Star } from "lucide-react";
+import { 
+  ArrowRight, 
+  Heart, 
+  Sparkles, 
+  Gift, 
+  Scissors, 
+  Palette, 
+  Star
+} from "lucide-react";
 import { LoginModal } from '@/components/login-modal';
 import { SignupModal } from '@/components/signup-modal';
 import { useAuthStore } from '../../lib/auth/useAuthStore';
+import { useProductStore, useFeaturedProducts } from '../../lib/product/useProductStore';
+import { ProductCard } from '@/components/ProductCard';
 
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuthStore();
+  const initializeProducts = useProductStore(state => state.initializeProducts);
+  const featuredProducts = useFeaturedProducts();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
+  
+  // Critical: Track if component has mounted on client
+  const [hasMounted, setHasMounted] = useState(false);
 
-  // Redirect to dashboard if user is authenticated
+  // Initialize products when component mounts
+  useEffect(() => {
+    initializeProducts();
+    setHasMounted(true); // Mark as mounted to prevent hydration mismatch
+  }, [initializeProducts]);
+
+  // Redirect based on user role if authenticated
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard');
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [user, loading, router]);
 
@@ -31,6 +56,10 @@ export default function Home() {
   const handleSwitchToLogin = () => {
     setIsSignupOpen(false);
     setIsLoginOpen(true);
+  };
+
+  const handleProductAction = () => {
+    setIsSignupOpen(true);
   };
 
   // Show loading or redirect if user is authenticated
@@ -47,10 +76,26 @@ export default function Home() {
     );
   }
 
-  // Don't render the homepage if user is authenticated (will redirect)
   if (user) {
     return null;
   }
+
+  // Loading skeleton component
+  const ProductSkeleton = () => (
+    <div className="rounded-xl shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm overflow-hidden animate-pulse">
+      <div className="aspect-square bg-gray-200 dark:bg-gray-700"></div>
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+        <div className="flex justify-between items-center">
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+        </div>
+        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
@@ -66,7 +111,7 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Button 
+          {/* <Button 
             variant="ghost" 
             className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100"
             onClick={() => setIsLoginOpen(true)}
@@ -78,7 +123,7 @@ export default function Home() {
             onClick={() => setIsSignupOpen(true)}
           >
             Sign Up
-          </Button>
+          </Button> */}
         </div>
       </header>
 
@@ -102,11 +147,20 @@ export default function Home() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-          <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-6 text-lg shadow-lg">
+          <Button 
+            size="lg" 
+            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-6 text-lg shadow-lg"
+            onClick={() => setIsSignupOpen(true)}
+          >
             Start Shopping
             <ArrowRight className="ml-2 w-5 h-5" />
           </Button>
-          <Button variant="outline" size="lg" className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-6 text-lg">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-6 text-lg"
+            onClick={() => document.getElementById('featured-products')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             Browse Gallery
           </Button>
         </div>
@@ -128,17 +182,54 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Placeholder for Product Showcase */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <div className="text-center">
-                <Heart className="w-8 h-8 text-pink-500 mx-auto mb-2" />
-                <p className="text-sm text-rose-700 dark:text-rose-300">Craft {i}</p>
-              </div>
-            </div>
-          ))}
+      {/* Featured Products Section - Hydration Safe */}
+      <section id="featured-products" className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-rose-900 dark:text-rose-100 mb-4">
+            Featured Handmade Treasures
+          </h2>
+          <p className="text-lg text-rose-700 dark:text-rose-300 max-w-2xl mx-auto">
+            Discover our most beloved creations. Each piece tells a unique story and brings warmth to your home.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {!hasMounted ? (
+            // Show skeletons on server and initial client render
+            [...Array(6)].map((_, i) => (
+              <ProductSkeleton key={`skeleton-${i}`} />
+            ))
+          ) : featuredProducts.length === 0 ? (
+            // Show skeletons if products haven't loaded yet
+            [...Array(6)].map((_, i) => (
+              <ProductSkeleton key={`loading-${i}`} />
+            ))
+          ) : (
+            // Show actual products after mount and data load
+            featuredProducts.map(product => (
+              <ProductCard 
+                key={product.id} 
+                product={product}
+                onViewClick={handleProductAction}
+                onHeartClick={handleProductAction}
+                onPurchaseClick={handleProductAction}
+                purchaseButtonText="Sign Up to Purchase"
+                showQuantity={false}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="text-center">
+          <Button 
+            size="lg" 
+            variant="outline" 
+            className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-4 text-lg"
+            onClick={() => setIsSignupOpen(true)}
+          >
+            View All Products
+            <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
         </div>
       </section>
 
@@ -193,7 +284,8 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20">
+      
+      {/* <section className="container mx-auto px-4 py-20">
         <Card className="border-0 shadow-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-rose-500 text-white overflow-hidden relative">
           <div className="absolute inset-0 bg-white/5 bg-[radial-gradient(circle_at_30%_40%,rgba(255,255,255,0.1),transparent_50%)]"></div>
           <CardContent className="p-12 text-center relative z-10">
@@ -215,7 +307,12 @@ export default function Home() {
                 Create Account
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm px-8 py-6 text-lg">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm px-8 py-6 text-lg"
+                onClick={() => document.getElementById('featured-products')?.scrollIntoView({ behavior: 'smooth' })}
+              >
                 Browse Catalog
               </Button>
             </div>
@@ -236,7 +333,7 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
-      </section>
+      </section> */}
 
       {/* Footer */}
       <footer className="container mx-auto px-4 py-12 border-t border-rose-200 dark:border-rose-800">

@@ -7,11 +7,21 @@ import {
   onAuthStateChanged,
   User 
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../client/firebaseConfig';
 
+// Extended user interface that includes role and other custom fields
+interface ExtendedUser extends User {
+  role?: string;
+  fullName?: string;
+  preferences?: {
+    newsletter: boolean;
+    notifications: boolean;
+  };
+}
+
 interface AuthState {
-  user: User | null;
+  user: ExtendedUser | null;
   loading: boolean;
   error: string | null;
   initialized: boolean;
@@ -21,8 +31,9 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
-  setUser: (user: User | null) => void;
+  setUser: (user: ExtendedUser | null) => void;
   initializeAuth: () => void;
+  fetchUserRole: (uid: string) => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -31,14 +42,75 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   initialized: false,
 
+  fetchUserRole: async (uid: string) => {
+    try {
+      const userDocRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return userData.role || 'customer';
+      }
+      return 'customer'; // Default role if no document found
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      return 'customer'; // Default role on error
+    }
+  },
+
   initializeAuth: () => {
     // Listen for auth state changes
-    onAuthStateChanged(auth, (user) => {
-      set({ 
-        user, 
-        loading: false,
-        initialized: true 
-      });
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Fetch additional user data from Firestore
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          let extendedUser: ExtendedUser = user as ExtendedUser;
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            extendedUser = {
+              ...user,
+              role: userData.role || 'customer',
+              fullName: userData.fullName || user.displayName,
+              preferences: userData.preferences || {
+                newsletter: true,
+                notifications: true
+              }
+            } as ExtendedUser;
+          } else {
+            // If no Firestore document exists, set default role
+            extendedUser.role = 'customer';
+          }
+          
+          set({ 
+            user: extendedUser, 
+            loading: false,
+            initialized: true 
+          });
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          // Set user with default role if Firestore fetch fails
+          const extendedUser: ExtendedUser = {
+            ...user,
+            role: 'customer'
+          } as ExtendedUser;
+          
+          set({ 
+            user: extendedUser, 
+            loading: false,
+            initialized: true 
+          });
+        }
+      } else {
+        set({ 
+          user: null, 
+          loading: false,
+          initialized: true 
+        });
+      }
     });
   },
 
@@ -57,7 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Save user information to Firestore
       const userDocRef = doc(db, 'users', user.uid);
-      await setDoc(userDocRef, {
+      const userData = {
         uid: user.uid,
         email: user.email,
         displayName: fullName,
@@ -66,20 +138,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         updatedAt: serverTimestamp(),
         emailVerified: user.emailVerified,
         photoURL: user.photoURL || null,
-        // Add any additional user fields you want to store
         role: 'customer', // Default role
         preferences: {
           newsletter: true,
           notifications: true
         }
-      });
+      };
 
-      // Update the local state with the user info
+      await setDoc(userDocRef, userData);
+
+      // Update the local state with the extended user info
+      const extendedUser: ExtendedUser = {
+        ...user,
+        displayName: fullName,
+        role: 'customer',
+        fullName: fullName,
+        preferences: {
+          newsletter: true,
+          notifications: true
+        }
+      } as ExtendedUser;
+
       set({ 
-        user: {
-          ...user,
-          displayName: fullName
-        } as User,
+        user: extendedUser,
         loading: false,
         error: null 
       });
@@ -128,13 +209,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Fetch additional user data from Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      let extendedUser: ExtendedUser = user as ExtendedUser;
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        extendedUser = {
+          ...user,
+          role: userData.role || 'customer',
+          fullName: userData.fullName || user.displayName,
+          preferences: userData.preferences || {
+            newsletter: true,
+            notifications: true
+          }
+        } as ExtendedUser;
+      } else {
+        // If no Firestore document exists, set default role
+        extendedUser.role = 'customer';
+      }
+
       set({ 
-        user,
+        user: extendedUser,
         loading: false,
         error: null 
       });
 
       console.log('User logged in successfully:', user.uid);
+      console.log('User role:', extendedUser.role);
       
     } catch (error: any) {
       console.error('Login error:', error);
@@ -199,7 +303,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ error: null });
   },
 
-  setUser: (user: User | null) => {
+  setUser: (user: ExtendedUser | null) => {
     set({ user });
   },
 }));

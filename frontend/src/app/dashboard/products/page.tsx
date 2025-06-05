@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,125 +17,42 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
-
-// Mock product data - replace with actual data from your store/API
-const mockProducts = [
-  {
-    id: 1,
-    name: "Handwoven Cotton Scarf",
-    price: 45.00,
-    quantity: 12,
-    image: "/api/placeholder/300/300",
-    category: "Accessories",
-    rating: 4.8,
-    reviews: 24,
-    inStock: true,
-    description: "Beautiful handwoven cotton scarf with intricate patterns"
-  },
-  {
-    id: 2,
-    name: "Ceramic Tea Cup Set",
-    price: 32.00,
-    quantity: 8,
-    image: "/api/placeholder/300/300",
-    category: "Home & Kitchen",
-    rating: 4.9,
-    reviews: 18,
-    inStock: true,
-    description: "Hand-painted ceramic tea cups with matching saucers"
-  },
-  {
-    id: 3,
-    name: "Knitted Wool Mittens",
-    price: 28.00,
-    quantity: 15,
-    image: "/api/placeholder/300/300",
-    category: "Accessories",
-    rating: 4.7,
-    reviews: 32,
-    inStock: true,
-    description: "Cozy knitted wool mittens in various colors"
-  },
-  {
-    id: 4,
-    name: "Macrame Wall Hanging",
-    price: 65.00,
-    quantity: 5,
-    image: "/api/placeholder/300/300",
-    category: "Home Decor",
-    rating: 4.6,
-    reviews: 15,
-    inStock: true,
-    description: "Beautiful macrame wall hanging for bohemian decor"
-  },
-  {
-    id: 5,
-    name: "Handmade Soap Collection",
-    price: 24.00,
-    quantity: 20,
-    image: "/api/placeholder/300/300",
-    category: "Bath & Body",
-    rating: 4.8,
-    reviews: 41,
-    inStock: true,
-    description: "Natural handmade soaps with essential oils"
-  },
-  {
-    id: 6,
-    name: "Embroidered Pillow Cover",
-    price: 38.00,
-    quantity: 3,
-    image: "/api/placeholder/300/300",
-    category: "Home Decor",
-    rating: 4.9,
-    reviews: 22,
-    inStock: true,
-    description: "Hand-embroidered pillow covers with floral patterns"
-  },
-  {
-    id: 7,
-    name: "Wooden Jewelry Box",
-    price: 85.00,
-    quantity: 0,
-    image: "/api/placeholder/300/300",
-    category: "Storage",
-    rating: 4.7,
-    reviews: 12,
-    inStock: false,
-    description: "Handcrafted wooden jewelry box with velvet lining"
-  },
-  {
-    id: 8,
-    name: "Crocheted Baby Blanket",
-    price: 55.00,
-    quantity: 7,
-    image: "/api/placeholder/300/300",
-    category: "Baby & Kids",
-    rating: 5.0,
-    reviews: 28,
-    inStock: true,
-    description: "Soft crocheted baby blanket in pastel colors"
-  }
-];
+import { useProductStore, useProducts, useCategories } from '../../../../lib/product/useProductStore';
 
 export default function ProductsPage() {
   const router = useRouter();
+  const initializeProducts = useProductStore(state => state.initializeProducts);
+  const searchProducts = useProductStore(state => state.searchProducts);
+  const getProductsByCategory = useProductStore(state => state.getProductsByCategory);
+  const products = useProducts();
+  const categories = useCategories();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('name');
 
-  // Get unique categories
-  const categories = ['All', ...Array.from(new Set(mockProducts.map(product => product.category)))];
+  // Initialize products when component mounts
+  useEffect(() => {
+    initializeProducts();
+  }, [initializeProducts]);
 
-  // Filter and sort products
-  const filteredProducts = mockProducts
-    .filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
+  // Get filtered and sorted products
+  const getFilteredProducts = () => {
+    let filteredProducts = products;
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      filteredProducts = searchProducts(searchTerm);
+    }
+
+    // Apply category filter
+    if (selectedCategory !== 'All') {
+      filteredProducts = filteredProducts.filter(product => product.category === selectedCategory);
+    }
+
+    // Apply sorting
+    return filteredProducts.sort((a, b) => {
       switch (sortBy) {
         case 'price-low':
           return a.price - b.price;
@@ -149,8 +66,11 @@ export default function ProductsPage() {
           return a.name.localeCompare(b.name);
       }
     });
+  };
 
-  const ProductCard = ({ product }: { product: typeof mockProducts[0] }) => (
+  const filteredProducts = getFilteredProducts();
+
+  const ProductCard = ({ product }: { product: (typeof products)[0] }) => (
     <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm group">
       <CardHeader className="p-0">
         <div className="relative overflow-hidden rounded-t-lg aspect-square">
@@ -179,6 +99,13 @@ export default function ProductsPage() {
           {product.quantity <= 5 && product.inStock && (
             <Badge className="absolute top-2 left-2 bg-orange-500 text-white">
               Low Stock
+            </Badge>
+          )}
+
+          {/* Featured badge */}
+          {product.isFeatured && (
+            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white">
+              Featured
             </Badge>
           )}
         </div>
@@ -331,7 +258,7 @@ export default function ProductsPage() {
         {/* Results count */}
         <div className="mb-6">
           <p className="text-rose-600 dark:text-rose-400">
-            Showing {filteredProducts.length} of {mockProducts.length} products
+            Showing {filteredProducts.length} of {products.length} products
           </p>
         </div>
       </header>
