@@ -15,56 +15,43 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../client/firebaseConfig';
 
-// Product type definition
-export interface Product {
-  id: number;
-  firestoreId?: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string | null;
-  category: string;
-  rating: number;
-  reviews: number;
-  inStock: boolean;
-  description: string;
-  isFeatured?: boolean;
+import type { Product } from '../../types/product';
+
+interface FirestoreProduct extends Product {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
 export interface ProductState {
-  products: Product[];
-  featuredProducts: Product[];
+  products: FirestoreProduct[];
+  featuredProducts: FirestoreProduct[];
   categories: string[];
   loading: boolean;
   error: string | null;
   hasHydrated: boolean;
   isRealTimeActive: boolean;
   
-  // Actions
   initializeProducts: () => Promise<void>;
   setHasHydrated: (state: boolean) => void;
-  getFeaturedProducts: () => Product[];
-  getProductsByCategory: (category: string) => Product[];
-  getProductById: (id: number) => Product | undefined;
-  updateProductStock: (id: number, quantity: number) => Promise<void>;
-  toggleFeatured: (id: number) => Promise<void>;
-  addProduct: (product: Omit<Product, 'id' | 'firestoreId'>) => Promise<string | null>;
-  updateProduct: (id: number, updates: Partial<Product>) => Promise<void>;
-  deleteProduct: (id: number) => Promise<void>;
+  getFeaturedProducts: () => FirestoreProduct[];
+  getProductsByCategory: (category: string) => FirestoreProduct[];
+  getProductById: (id: string) => FirestoreProduct | undefined; 
+  updateProductStock: (id: string, quantity: number) => Promise<void>;
+  toggleFeatured: (id: string) => Promise<void>; 
+  addProduct: (product: Omit<FirestoreProduct, 'id'>) => Promise<string | null>;
+  updateProduct: (id: string, updates: Partial<FirestoreProduct>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   getCategories: () => string[];
-  searchProducts: (query: string) => Product[];
+  searchProducts: (query: string) => FirestoreProduct[];
   setupRealtimeListener: () => () => void;
   stopRealtimeListener: () => void;
 }
 
-// Convert Firestore document to Product
-const firestoreToProduct = (doc: any): Product => {
+
+const firestoreToProduct = (doc: any): FirestoreProduct => {
   const data = doc.data();
   return {
-    id: parseInt(doc.id) || Date.now(),
-    firestoreId: doc.id,
+    id: doc.id, 
     name: data.name || '',
     price: data.price || 0,
     quantity: data.quantity || 0,
@@ -80,8 +67,8 @@ const firestoreToProduct = (doc: any): Product => {
   };
 };
 
-// Convert Product to Firestore data
-const productToFirestore = (product: Omit<Product, 'id' | 'firestoreId'>) => {
+
+const productToFirestore = (product: Omit<FirestoreProduct, 'id'>) => {
   return {
     name: product.name,
     price: product.price,
@@ -122,7 +109,7 @@ export const useProductStore = create<ProductState>()(
             const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
             const querySnapshot = await getDocs(q);
             
-            const products: Product[] = [];
+            const products: FirestoreProduct[] = [];
             querySnapshot.forEach((doc) => {
               products.push(firestoreToProduct(doc));
             });
@@ -139,7 +126,6 @@ export const useProductStore = create<ProductState>()(
               error: null
             });
 
-            // Auto-setup realtime listener after initial load
             get().setupRealtimeListener();
 
           } catch (error) {
@@ -152,7 +138,6 @@ export const useProductStore = create<ProductState>()(
         },
 
         setupRealtimeListener: () => {
-          // Don't setup multiple listeners
           if (unsubscribeRealtime) {
             unsubscribeRealtime();
           }
@@ -161,7 +146,7 @@ export const useProductStore = create<ProductState>()(
           
           unsubscribeRealtime = onSnapshot(q, 
             (snapshot) => {
-              const products: Product[] = [];
+              const products: FirestoreProduct[] = [];
               snapshot.forEach((doc) => {
                 products.push(firestoreToProduct(doc));
               });
@@ -209,25 +194,26 @@ export const useProductStore = create<ProductState>()(
           return products.filter(product => product.category === category);
         },
 
-        getProductById: (id: number) => {
+        
+        getProductById: (id: string) => {
           const { products } = get();
           return products.find(product => product.id === id);
         },
 
-        updateProductStock: async (id: number, quantity: number) => {
+        
+        updateProductStock: async (id: string, quantity: number) => {
           try {
             const { products } = get();
             const product = products.find(p => p.id === id);
-            if (!product?.firestoreId) return;
+            if (!product) return;
 
-            const docRef = doc(db, 'products', product.firestoreId);
+            const docRef = doc(db, 'products', id);
             await updateDoc(docRef, {
               quantity,
               inStock: quantity > 0,
               updatedAt: serverTimestamp()
             });
 
-            // Optimistic update - realtime listener will sync the actual data
             set(state => ({
               products: state.products.map(p =>
                 p.id === id ? { ...p, quantity, inStock: quantity > 0 } : p
@@ -243,20 +229,21 @@ export const useProductStore = create<ProductState>()(
           }
         },
 
-        toggleFeatured: async (id: number) => {
+
+        toggleFeatured: async (id: string) => {
           try {
             const { products } = get();
             const product = products.find(p => p.id === id);
-            if (!product?.firestoreId) return;
+            if (!product) return;
 
             const newFeaturedStatus = !product.isFeatured;
-            const docRef = doc(db, 'products', product.firestoreId);
+            const docRef = doc(db, 'products', id); 
             await updateDoc(docRef, {
               isFeatured: newFeaturedStatus,
               updatedAt: serverTimestamp()
             });
 
-            // Optimistic update
+
             set(state => {
               const updatedProducts = state.products.map(p =>
                 p.id === id ? { ...p, isFeatured: newFeaturedStatus } : p
@@ -275,7 +262,7 @@ export const useProductStore = create<ProductState>()(
           }
         },
 
-        addProduct: async (productData: Omit<Product, 'id' | 'firestoreId'>) => {
+        addProduct: async (productData: Omit<FirestoreProduct, 'id'>) => {
           try {
             set({ loading: true, error: null });
 
@@ -299,18 +286,18 @@ export const useProductStore = create<ProductState>()(
           }
         },
 
-        updateProduct: async (id: number, updates: Partial<Product>) => {
+        
+        updateProduct: async (id: string, updates: Partial<FirestoreProduct>) => {
           try {
             const { products } = get();
             const product = products.find(p => p.id === id);
-            if (!product?.firestoreId) return;
+            if (!product) return;
 
-            const docRef = doc(db, 'products', product.firestoreId);
+            const docRef = doc(db, 'products', id);
             const updateData = productToFirestore({ ...product, ...updates });
             
             await updateDoc(docRef, updateData);
 
-            // Optimistic update
             set(state => {
               const updatedProducts = state.products.map(p =>
                 p.id === id ? { ...p, ...updates } : p
@@ -331,15 +318,12 @@ export const useProductStore = create<ProductState>()(
           }
         },
 
-        deleteProduct: async (id: number) => {
+        
+        deleteProduct: async (id: string) => {
           try {
-            const { products } = get();
-            const product = products.find(p => p.id === id);
-            if (!product?.firestoreId) return;
+            await deleteDoc(doc(db, 'products', id)); 
 
-            await deleteDoc(doc(db, 'products', product.firestoreId));
-
-            // Optimistic update
+            
             set(state => {
               const updatedProducts = state.products.filter(p => p.id !== id);
               const featuredProducts = updatedProducts.filter(p => p.isFeatured);
@@ -378,7 +362,6 @@ export const useProductStore = create<ProductState>()(
       {
         name: 'product-store',
         partialize: (state) => ({ 
-          // Only persist essential data, not loading states
           products: state.products,
           featuredProducts: state.featuredProducts,
           categories: state.categories,
@@ -386,7 +369,6 @@ export const useProductStore = create<ProductState>()(
         }),
         onRehydrateStorage: () => (state) => {
           state?.setHasHydrated(true);
-          // Re-setup realtime listener after rehydration
           if (state && state.products.length > 0) {
             state.setupRealtimeListener();
           }
@@ -399,12 +381,10 @@ export const useProductStore = create<ProductState>()(
   )
 );
 
-// Cleanup function for app unmount
 export const cleanupProductStore = () => {
   useProductStore.getState().stopRealtimeListener();
 };
 
-// Stable selector hooks
 export const useFeaturedProducts = () => {
   return useProductStore((state) => state.featuredProducts);
 };

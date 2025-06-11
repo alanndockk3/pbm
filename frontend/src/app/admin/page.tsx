@@ -28,7 +28,7 @@ import {
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
 import { useAdminStore } from '../../../lib/admin/useAdminStore';
 import { AdminProductForm } from '@/components/admin/AdminProductForm';
-import { ProductCard } from '@/components/ProductCard';
+import { ProductCard } from '@/components/product/ProductCard';
 import type { Product } from '../../../types/product';
 import { 
   collection, 
@@ -69,14 +69,13 @@ export default function AdminPage() {
         setLoading(true);
         const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
         
-        // Set up real-time listener
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const productsData: Product[] = [];
           snapshot.forEach((doc) => {
             const data = doc.data();
+            
             productsData.push({
-              id: parseInt(doc.id) || Math.random(), // Convert string ID to number for compatibility
-              firestoreId: doc.id, // Keep original Firestore ID
+              id: doc.id, 
               name: data.name,
               price: data.price,
               quantity: data.quantity,
@@ -87,30 +86,36 @@ export default function AdminPage() {
               inStock: data.inStock,
               description: data.description,
               isFeatured: data.isFeatured || false,
-            } as Product & { firestoreId: string });
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt,
+            } as Product);
           });
+          
+          console.log('Loaded products:', productsData.length);
+          console.log('Sample product IDs:', productsData.slice(0, 3).map(p => ({ id: p.id, type: typeof p.id })));
+          
           setProducts(productsData);
           setLoading(false);
         });
-
+  
         return unsubscribe;
       } catch (error) {
         console.error('Error loading products:', error);
         setLoading(false);
       }
     };
-
+  
     loadProducts();
   }, []);
 
-  // Redirect if not admin
+  
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
       router.push('/');
     }
   }, [user, authLoading, router]);
 
-  // Clear messages after timeout
+  
   useEffect(() => {
     if (successMessage) {
       const timer = setTimeout(() => setSuccessMessage(null), 5000);
@@ -118,10 +123,10 @@ export default function AdminPage() {
     }
   }, [successMessage]);
 
-  // Get unique categories from products
+  
   const categories = [...new Set(products.map(p => p.category))];
 
-  // Get filtered and sorted products
+  
   const getFilteredProducts = () => {
     if (!products || products.length === 0) {
       return [];
@@ -226,14 +231,14 @@ export default function AdminPage() {
       <header className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button 
+            {/* <Button 
               variant="ghost" 
               onClick={() => router.push('/')}
               className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Home
-            </Button>
+            </Button> */}
             <div>
               <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">Admin Dashboard</h1>
               <p className="text-rose-600 dark:text-rose-400">Manage your handmade products</p>

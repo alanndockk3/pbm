@@ -20,6 +20,7 @@ interface AdminProductFormProps {
 
 const CATEGORIES = [
   'Accessories',
+  'Crochet',
   'Home & Kitchen',
   'Home Decor',
   'Bath & Body',

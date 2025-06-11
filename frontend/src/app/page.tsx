@@ -18,7 +18,7 @@ import { LoginModal } from '@/components/login-modal';
 import { SignupModal } from '@/components/signup-modal';
 import { useAuthStore } from '../../lib/auth/useAuthStore';
 import { useProductStore, useFeaturedProducts } from '../../lib/product/useProductStore';
-import { ProductCard } from '@/components/ProductCard';
+import { ProductCard } from '@/components/product/ProductCard';
 
 export default function Home() {
   const router = useRouter();
@@ -27,17 +27,15 @@ export default function Home() {
   const featuredProducts = useFeaturedProducts();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
-  
-  // Critical: Track if component has mounted on client
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Initialize products when component mounts
+
   useEffect(() => {
     initializeProducts();
-    setHasMounted(true); // Mark as mounted to prevent hydration mismatch
+    setHasMounted(true);
   }, [initializeProducts]);
 
-  // Redirect based on user role if authenticated
+
   useEffect(() => {
     if (!loading && user) {
       if (user.role === 'admin') {
@@ -62,7 +60,6 @@ export default function Home() {
     setIsSignupOpen(true);
   };
 
-  // Show loading or redirect if user is authenticated
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950 flex items-center justify-center">
@@ -80,7 +77,7 @@ export default function Home() {
     return null;
   }
 
-  // Loading skeleton component
+  // Skeleton component
   const ProductSkeleton = () => (
     <div className="rounded-xl shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm overflow-hidden animate-pulse">
       <div className="aspect-square bg-gray-200 dark:bg-gray-700"></div>
@@ -111,7 +108,7 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {/* <Button 
+          <Button 
             variant="ghost" 
             className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100"
             onClick={() => setIsLoginOpen(true)}
@@ -123,7 +120,7 @@ export default function Home() {
             onClick={() => setIsSignupOpen(true)}
           >
             Sign Up
-          </Button> */}
+          </Button>
         </div>
       </header>
 
@@ -366,7 +363,7 @@ export default function Home() {
       </footer>
 
       {/* Modals */}
-      <LoginModal 
+      {/* <LoginModal 
         isOpen={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)}
         onSwitchToSignup={handleSwitchToSignup}
@@ -375,7 +372,7 @@ export default function Home() {
         isOpen={isSignupOpen} 
         onClose={() => setIsSignupOpen(false)}
         onSwitchToLogin={handleSwitchToLogin}
-      />
+      /> */}
     </div>
   );
 }
