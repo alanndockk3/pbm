@@ -12,12 +12,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductModal } from './ProductModal';
+import { useWishlistStore, useIsInWishlist } from '../../../lib/profile/useWishListStore';
+import { useAuthStore } from '../../../lib/auth/useAuthStore';
 import type { Product } from '../../../types/product';
 
 interface ProductCardProps {
   product: Product;
   onViewClick?: () => void;
-  onHeartClick?: () => void;
   onPurchaseClick?: () => void;
   showQuantity?: boolean;
   purchaseButtonText?: string;
@@ -28,27 +29,41 @@ interface ProductCardProps {
 export const ProductCard = ({
   product,
   onViewClick,
-  onHeartClick,
   onPurchaseClick,
   showQuantity = false,
   purchaseButtonText = "Add to Cart",
   disabled = false,
   className
 }: ProductCardProps) => {
+  const { user } = useAuthStore();
+  const { toggleWishlist, isLoading: wishlistLoading } = useWishlistStore();
+  const isInWishlist = useIsInWishlist(product.id);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleViewClick = () => {
+    // Only open modal for quick view, don't call onViewClick
     setIsModalOpen(true);
-    onViewClick?.();
   };
 
   const handleCardClick = () => {
+    // Only open modal, don't trigger onViewClick which causes navigation
     setIsModalOpen(true);
   };
 
-  const handleHeartClick = (e: React.MouseEvent) => {
+  const handleHeartClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onHeartClick?.();
+    
+    if (!user?.uid) {
+      // Handle unauthenticated user - you might want to show login modal
+      console.log('User must be logged in to use wishlist');
+      return;
+    }
+
+    try {
+      await toggleWishlist(user.uid, product.id);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+    }
   };
 
   const handlePurchaseClick = () => {
@@ -127,10 +142,17 @@ export const ProductCard = ({
           <Button
             size="sm"
             variant="secondary"
-            className="absolute bottom-2 right-2 bg-white/90 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className={cn(
+              "absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+              isInWishlist 
+                ? "bg-red-500 hover:bg-red-600 text-white" 
+                : "bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700",
+              wishlistLoading && "opacity-50 cursor-not-allowed"
+            )}
             onClick={handleHeartClick}
+            disabled={wishlistLoading}
           >
-            <Heart className="w-4 h-4" />
+            <Heart className={cn("w-4 h-4", isInWishlist && "fill-current")} />
           </Button>
         </div>
         
@@ -185,27 +207,50 @@ export const ProductCard = ({
             )}
           </div>
 
-          {/* Quick Add to Cart Button */}
-          <Button
-            className={cn(
-              "w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white",
-              (!product.inStock || disabled) && "opacity-50 cursor-not-allowed"
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePurchaseClick();
-            }}
-            disabled={!product.inStock || disabled}
-          >
-            {!product.inStock ? (
-              'Out of Stock'
-            ) : (
-              <>
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                {purchaseButtonText}
-              </>
-            )}
-          </Button>
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            {/* Primary Action Button */}
+            <Button
+              className={cn(
+                "w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white",
+                (!product.inStock || disabled) && "opacity-50 cursor-not-allowed"
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePurchaseClick();
+              }}
+              disabled={!product.inStock || disabled}
+            >
+              {!product.inStock ? (
+                'Out of Stock'
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {purchaseButtonText}
+                </>
+              )}
+            </Button>
+
+            {/* Wishlist Button */}
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full border-rose-300 hover:bg-rose-50 dark:border-rose-700 dark:hover:bg-rose-900",
+                isInWishlist 
+                  ? "text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20" 
+                  : "text-rose-700 dark:text-rose-300",
+                wishlistLoading && "opacity-50 cursor-not-allowed"
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleHeartClick(e);
+              }}
+              disabled={wishlistLoading}
+            >
+              <Heart className={cn("w-4 h-4 mr-2", isInWishlist && "fill-current")} />
+              {wishlistLoading ? 'Updating...' : (isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist')}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -214,7 +259,6 @@ export const ProductCard = ({
         product={product}
         isOpen={isModalOpen}
         onClose={closeModal}
-        onHeartClick={onHeartClick}
         onPurchaseClick={onPurchaseClick}
         showQuantity={showQuantity}
         purchaseButtonText={purchaseButtonText}

@@ -5,19 +5,17 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Footer from '@/components/footer';
+import Wishlist from '@/components/account/Wishlist';
 import { 
   Heart, 
   Sparkles, 
   Gift, 
   User, 
   Package, 
-  ShoppingBag, 
-  Star,
-  Settings,
+  ShoppingBag,
   LogOut,
   Bell,
-  Calendar,
-  CreditCard,
   MapPin,
   Plus
 } from "lucide-react";
@@ -29,9 +27,41 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/')
+    router.replace('/');
   };
 
+  // Wishlist handlers
+  const handleViewWishlistItem = (itemId: string) => {
+    console.log('View wishlist item:', itemId);
+  };
+
+  const handleAddToCart = (itemId: string) => {
+    console.log('Add to cart:', itemId);
+    // Add item to cart logic here
+  };
+
+  const handleRemoveFromWishlist = (itemId: string) => {
+    console.log('Remove from wishlist:', itemId);
+    // Remove item from wishlist logic here
+  };
+
+  const handleViewAllWishlist = () => {
+    router.push('/dashboard/wishlist');
+  };
+
+  // Mock data - replace with real data from your stores
+  const mockStats = {
+    orders: 5,
+    wishlist: 12,
+    reviews: 4.8,
+    customOrders: 2
+  };
+
+  const mockRecentOrders = [
+    { id: 1, name: 'Handwoven Scarf', status: 'Delivered' },
+    { id: 2, name: 'Ceramic Mug Set', status: 'Delivered' },
+    { id: 3, name: 'Knitted Blanket', status: 'Delivered' }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
@@ -88,7 +118,7 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-800 dark:to-pink-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Package className="w-6 h-6 text-pink-600 dark:text-pink-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">5</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.orders}</h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Orders</p>
             </CardContent>
           </Card>
@@ -98,7 +128,7 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Heart className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">12</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.wishlist}</h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Wishlist</p>
             </CardContent>
           </Card>
@@ -106,9 +136,9 @@ export default function Dashboard() {
           <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-800 dark:to-rose-700 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Star className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                <Sparkles className="w-6 h-6 text-rose-600 dark:text-rose-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">4.8</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.reviews}</h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Reviews</p>
             </CardContent>
           </Card>
@@ -118,7 +148,7 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-800 dark:to-yellow-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Gift className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">2</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.customOrders}</h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Custom Orders</p>
             </CardContent>
           </Card>
@@ -148,13 +178,13 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {[1, 2, 3].map((order) => (
-                <div key={order} className="flex items-center justify-between p-3 rounded-lg bg-rose-50/50 dark:bg-rose-800/20">
+              {mockRecentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 rounded-lg bg-rose-50/50 dark:bg-rose-800/20">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-pink-200 to-purple-200 dark:from-pink-700 dark:to-purple-700 rounded-lg"></div>
                     <div>
-                      <p className="font-medium text-rose-900 dark:text-rose-100">Handmade Scarf #{order}</p>
-                      <p className="text-xs text-rose-600 dark:text-rose-400">Delivered</p>
+                      <p className="font-medium text-rose-900 dark:text-rose-100">{order.name} #{order.id}</p>
+                      <p className="text-xs text-rose-600 dark:text-rose-400">{order.status}</p>
                     </div>
                   </div>
                   <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -165,34 +195,15 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Wishlist */}
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 rounded-lg flex items-center justify-center">
-                    <Heart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg text-rose-900 dark:text-rose-100">Wishlist</CardTitle>
-                    <CardDescription className="text-rose-700 dark:text-rose-300">Items you love</CardDescription>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="text-purple-600 hover:text-purple-700">
-                  View All
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6].map((item) => (
-                  <div key={item} className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-pink-500 fill-current" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Wishlist Component */}
+          <Wishlist 
+            isCompact={true}
+            showActions={false}
+            onViewItem={handleViewWishlistItem}
+            onAddToCart={handleAddToCart}
+            onRemoveFromWishlist={handleRemoveFromWishlist}
+            onViewAll={handleViewAllWishlist}
+          />
 
           {/* Quick Actions */}
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
@@ -208,22 +219,29 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button onClick={() => router.push('dashboard/products')}
-              className="w-full justify-start bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
+              <Button 
+                onClick={() => router.push('/dashboard/products')}
+                className="w-full justify-start bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+              >
                 <ShoppingBag className="w-4 h-4 mr-2" />
                 Browse Products
               </Button>
-              <Button variant="outline" className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Custom Order
               </Button>
-              <Button variant="outline" className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+              >
                 <Gift className="w-4 h-4 mr-2" />
                 Gift Cards
               </Button>
             </CardContent>
           </Card>
-
         </div>
       </section>
 
@@ -231,8 +249,11 @@ export default function Dashboard() {
       <section className="container mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold text-rose-900 dark:text-rose-100 mb-6">Account Management</h2>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer">
+        <div className="grid md:grid-cols-2 gap-6 max-w-2xl">
+          <Card 
+            className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer"
+            onClick={() => router.push('/dashboard/profile')}
+          >
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-700 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -242,7 +263,10 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer">
+          <Card 
+            className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer"
+            onClick={() => router.push('/dashboard/addresses')}
+          >
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-800 dark:to-green-700 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <MapPin className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -251,58 +275,10 @@ export default function Dashboard() {
               <p className="text-sm text-rose-600 dark:text-rose-400">Manage shipping addresses</p>
             </CardContent>
           </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-800 dark:to-yellow-700 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <CreditCard className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <h3 className="font-semibold text-rose-900 dark:text-rose-100 mb-2">Payment</h3>
-              <p className="text-sm text-rose-600 dark:text-rose-400">Manage payment methods</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Settings className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-              </div>
-              <h3 className="font-semibold text-rose-900 dark:text-rose-100 mb-2">Settings</h3>
-              <p className="text-sm text-rose-600 dark:text-rose-400">Preferences and notifications</p>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="container mx-auto px-4 py-12 border-t border-rose-200 dark:border-rose-800">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-              <Heart className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <span className="font-semibold text-rose-800 dark:text-rose-200">PBM - Pretties by Marg</span>
-              <p className="text-xs text-rose-600 dark:text-rose-400">Handcrafted with love since 2024</p>
-            </div>
-          </div>
-          
-          <div className="flex gap-6 text-sm text-rose-600 dark:text-rose-400">
-            <a href="#" className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors">
-              Support
-            </a>
-            <a href="#" className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors">
-              Contact
-            </a>
-            <a href="#" className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors">
-              Privacy
-            </a>
-            <a href="#" className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors">
-              Terms
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

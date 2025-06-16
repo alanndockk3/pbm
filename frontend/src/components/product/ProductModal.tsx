@@ -22,6 +22,7 @@ interface ProductModalProps {
   showQuantity?: boolean;
   purchaseButtonText?: string;
   disabled?: boolean;
+  isInWishlist?: boolean;
 }
 
 export const ProductModal = ({
@@ -33,6 +34,7 @@ export const ProductModal = ({
   showQuantity = false,
   purchaseButtonText = "Add to Cart",
   disabled = false,
+  isInWishlist = false,
 }: ProductModalProps) => {
   if (!isOpen) return null;
 
@@ -83,6 +85,21 @@ export const ProductModal = ({
                 <Package className="w-32 h-32 text-pink-500 opacity-50" />
               </div>
             )}
+
+            {/* Wishlist Heart Button Overlay */}
+            <Button
+              size="sm"
+              variant="secondary"
+              className={cn(
+                "absolute top-4 right-4",
+                isInWishlist 
+                  ? "bg-red-500 hover:bg-red-600 text-white" 
+                  : "bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700"
+              )}
+              onClick={handleHeartClick}
+            >
+              <Heart className={cn("w-5 h-5", isInWishlist && "fill-current")} />
+            </Button>
           </div>
           
           {/* Product Details Section */}
@@ -159,6 +176,7 @@ export const ProductModal = ({
             
             {/* Action Buttons */}
             <div className="space-y-3">
+              {/* Purchase Button */}
               <Button 
                 className={cn(
                   "w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-6 text-lg",
@@ -177,13 +195,19 @@ export const ProductModal = ({
                 )}
               </Button>
               
+              {/* Wishlist Button */}
               <Button 
                 variant="outline" 
-                className="w-full border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 py-3"
+                className={cn(
+                  "w-full py-3",
+                  isInWishlist 
+                    ? "border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20" 
+                    : "border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900"
+                )}
                 onClick={handleHeartClick}
               >
-                <Heart className="w-4 h-4 mr-2" />
-                Add to Wishlist
+                <Heart className={cn("w-4 h-4 mr-2", isInWishlist && "fill-current")} />
+                {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
               </Button>
             </div>
           </div>
