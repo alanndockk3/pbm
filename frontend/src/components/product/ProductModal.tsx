@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   X
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/library/utils";
 import type { Product } from '../../../types/product';
 
 interface ProductModalProps {

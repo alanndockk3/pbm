@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,10 +12,12 @@ import {
   DollarSign,
   Star
 } from "lucide-react";
-import { useAuthStore } from '../../../lib/auth/useAuthStore';
-import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../lib/profile/useWishListStore';
-import { useProductStore, useProducts } from '../../../lib/product/useProductStore';
-import type { Product } from '../../../types/product';
+import { useAuthStore } from '../../../../lib/auth/useAuthStore';
+import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../../lib/profile/useWishListStore';
+import { useProductStore, useProducts } from '../../../../lib/product/useProductStore';
+import { WishlistProductCard } from './WishlistProductCard';
+import { WishlistProductModal } from './WishlistProductModal';
+import type { Product } from '../../../../types/product';
 
 interface WishlistCardProps {
   onAddToCart?: (itemId: string) => void;
@@ -25,6 +27,8 @@ interface WishlistCardProps {
 export default function WishlistCard({ onAddToCart, className = "" }: WishlistCardProps) {
   const router = useRouter();
   const { user } = useAuthStore();
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Wishlist store
   const { loadWishlist, removeFromWishlist, subscribeToWishlist } = useWishlistStore();
@@ -58,14 +62,31 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
   };
 
   const handleViewWishlistItem = (itemId: string) => {
-    router.push(`/dashboard/products/${itemId}`);
+    console.log('Viewing wishlist item:', itemId); // Debug log
+    const product = wishlistItems.find(item => item.id === itemId);
+    console.log('Found product:', product); // Debug log
+    if (product) {
+      setSelectedProduct(product);
+      setIsModalOpen(true);
+      console.log('Modal should open now'); // Debug log
+    }
   };
 
-  const handleAddToCartClick = (itemId: string) => {
+  const handleAddToCartClick = (itemId: string, quantity: number = 1) => {
     if (onAddToCart) {
       onAddToCart(itemId);
     } else {
-      console.log('Add to cart:', itemId);
+      console.log('Add to cart:', itemId, 'Quantity:', quantity);
+    }
+  };
+
+  const handleRemoveFromWishlist = async (itemId: string) => {
+    if (!user?.uid) return;
+    
+    try {
+      await removeFromWishlist(user.uid, itemId);
+    } catch (error) {
+      console.error('Error removing from wishlist:', error);
     }
   };
 
@@ -121,44 +142,27 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
             {wishlistItems.slice(0, 6).map((item) => (
               <div 
                 key={item.id} 
-                className="group aspect-square bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-xl flex flex-col items-center justify-center relative overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
+                className="group aspect-square rounded-xl flex flex-col items-center justify-center relative overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
                 onClick={() => handleViewWishlistItem(item.id)}
+                style={{
+                  backgroundImage: item.image ? `url(${item.image})` : 'none',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
               >
-                {/* Product Image Placeholder */}
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-200 to-purple-200 dark:from-pink-800 dark:to-purple-800 opacity-80"></div>
+                {/* Fallback gradient background when no image */}
+                {!item.image && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900"></div>
+                )}
                 
-                {/* Heart Icon */}
-                <Heart className="w-6 h-6 text-pink-500 relative z-10 mb-2 group-hover:scale-110 transition-transform" />
+                {/* Heart Icon - only show when no image and not hovering */}
+                {!item.image && (
+                  <Heart className="w-6 h-6 text-pink-500 relative z-10 mb-2 group-hover:opacity-0 transition-all duration-300" />
+                )}
                 
                 {/* Product Info on Hover */}
                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                  <p className="text-white text-xs font-medium text-center px-2 mb-2 line-clamp-2">{item.name}</p>
-                  <p className="text-white text-xs mb-2">${item.price}</p>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewWishlistItem(item.id);
-                      }}
-                      className="text-white hover:bg-white/20 p-1 h-auto"
-                    >
-                      <Eye className="w-3 h-3" />
-                    </Button>
-                    {item.inStock && (
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddToCartClick(item.id);
-                        }}
-                        className="bg-white text-pink-600 hover:bg-white/90 p-1 h-auto"
-                      >
-                        <ShoppingCart className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
+                  <p className="text-white text-sm font-medium text-center px-2 line-clamp-2">{item.name}</p>
                 </div>
 
                 {/* Stock Status Badge */}
@@ -197,6 +201,20 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
           </div>
         )}
       </CardContent>
+      
+      {/* Wishlist Product Modal */}
+      {selectedProduct && (
+        <WishlistProductModal
+          product={selectedProduct}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          onAddToCart={handleAddToCartClick}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
+        />
+      )}
     </Card>
   );
 }

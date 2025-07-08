@@ -1,12 +1,13 @@
 'use client'
 
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Footer from '@/components/footer';
-import Wishlist from '@/components/account/Wishlist';
+import Wishlist from '@/components/account/wishlist/Wishlist';
+import { WishlistProductModal } from '@/components/account/wishlist/WishlistProductModal';
 import { 
   Heart, 
   Sparkles, 
@@ -20,29 +21,77 @@ import {
   Plus
 } from "lucide-react";
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
+import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../lib/profile/useWishListStore';
+import { useProductStore, useProducts } from '../../../lib/product/useProductStore';
+import type { Product } from '../../../types/product';
 
 export default function Dashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  
+  // Modal state
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Wishlist and product stores
+  const { loadWishlist, removeFromWishlist, subscribeToWishlist } = useWishlistStore();
+  const wishlistProductIds = useWishlistItems();
+  const wishlistLoading = useWishlistLoading();
+  const { initializeProducts } = useProductStore();
+  const allProducts = useProducts();
+  
+  // Get actual product objects from wishlist IDs
+  const wishlistItems = useMemo(() => {
+    return wishlistProductIds
+      .map(productId => allProducts.find(product => product.id === productId))
+      .filter(Boolean) as Product[];
+  }, [wishlistProductIds, allProducts]);
+
+  // Initialize data on mount
+  useEffect(() => {
+    if (user?.uid) {
+      initializeProducts();
+      loadWishlist(user.uid);
+      
+      const unsubscribe = subscribeToWishlist(user.uid);
+      return unsubscribe;
+    }
+  }, [user?.uid, initializeProducts, loadWishlist, subscribeToWishlist]);
 
   const handleLogout = async () => {
     await logout();
     router.replace('/');
   };
 
-  // Wishlist handlers
+  // Wishlist handlers with modal logic
   const handleViewWishlistItem = (itemId: string) => {
     console.log('View wishlist item:', itemId);
+    const product = wishlistItems.find(item => item.id === itemId);
+    if (product) {
+      setSelectedProduct(product);
+      setIsModalOpen(true);
+    }
   };
 
-  const handleAddToCart = (itemId: string) => {
-    console.log('Add to cart:', itemId);
+  const handleAddToCart = (itemId: string, quantity: number = 1) => {
+    console.log('Add to cart:', itemId, 'Quantity:', quantity);
     // Add item to cart logic here
   };
 
-  const handleRemoveFromWishlist = (itemId: string) => {
+  const handleRemoveFromWishlist = async (itemId: string) => {
     console.log('Remove from wishlist:', itemId);
-    // Remove item from wishlist logic here
+    if (!user?.uid) return;
+    
+    try {
+      await removeFromWishlist(user.uid, itemId);
+      // Close modal if the removed item was being viewed
+      if (selectedProduct?.id === itemId) {
+        setIsModalOpen(false);
+        setSelectedProduct(null);
+      }
+    } catch (error) {
+      console.error('Error removing from wishlist:', error);
+    }
   };
 
   const handleViewAllWishlist = () => {
@@ -52,7 +101,7 @@ export default function Dashboard() {
   // Mock data - replace with real data from your stores
   const mockStats = {
     orders: 5,
-    wishlist: 12,
+    wishlist: wishlistItems.length || 0, // Use real wishlist count or fallback
     reviews: 4.8,
     customOrders: 2
   };
@@ -195,11 +244,12 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Wishlist Component */}
+          {/* Wishlist Component - Pass real data */}
           <Wishlist 
+            items={wishlistItems} // Pass real wishlist items
             isCompact={true}
             showActions={false}
-            onViewItem={handleViewWishlistItem}
+            onViewItem={handleViewWishlistItem} // This will open the modal
             onAddToCart={handleAddToCart}
             onRemoveFromWishlist={handleRemoveFromWishlist}
             onViewAll={handleViewAllWishlist}
@@ -279,6 +329,20 @@ export default function Dashboard() {
       </section>
 
       <Footer />
+
+      {/* Wishlist Product Modal */}
+      {selectedProduct && (
+        <WishlistProductModal
+          product={selectedProduct}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          onAddToCart={handleAddToCart}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
+        />
+      )}
     </div>
   );
 }

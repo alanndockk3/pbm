@@ -10,7 +10,7 @@ import {
   Eye,
   ShoppingCart
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/library/utils";
 import { ProductModal } from './ProductModal';
 import { useWishlistStore, useIsInWishlist } from '../../../lib/profile/useWishListStore';
 import { useAuthStore } from '../../../lib/auth/useAuthStore';

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from './useAuthStore';
-import { Heart } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -15,10 +15,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     console.log('AuthProvider: Initializing auth...');
-    
     // Initialize the auth store (this sets up the onAuthStateChanged listener)
     initializeAuth();
-    
+
     // Set initialization complete after a brief delay to ensure auth state is processed
     const timer = setTimeout(() => {
       setIsInitializing(false);
@@ -29,6 +28,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Show loading screen while initializing
   if (isInitializing || !initialized) {
+    // Simple spinner version for authenticated users
+    if (user) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-4" />
+            <p className="text-rose-700 dark:text-rose-300 text-sm">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Full loading experience for unauthenticated users
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950 flex items-center justify-center">
         <div className="text-center">
