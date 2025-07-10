@@ -180,7 +180,7 @@ export function WishlistProductModal({
               <Button
                 variant="ghost"
                 onClick={handleRemoveFromWishlist}
-                className="w-full text-gray-600 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-11 text-sm font-medium rounded-xl transition-all duration-200"
+                className="w-full text-red-500 dark:text-red-400 hover:bg-red-50 hover:opacity-80 dark:hover:bg-red-900/20 dark:hover:opacity-80 h-11 text-sm font-medium rounded-xl transition-all duration-200"
               >
                 <Heart className="w-4 h-4 mr-2 fill-current" />
                 Remove from Wishlist

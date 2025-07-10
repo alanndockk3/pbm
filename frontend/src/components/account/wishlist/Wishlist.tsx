@@ -4,7 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, Eye, ShoppingCart, X } from "lucide-react";
-import { ProductCard } from '@/components/product/ProductCard';
+import { WishlistProductCard } from './WishlistProductCard';
 import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../../lib/profile/useWishListStore';
 import { useProductStore, useProducts } from '../../../../lib/product/useProductStore';
@@ -15,7 +15,7 @@ interface WishlistProps {
   isCompact?: boolean;
   showActions?: boolean;
   onViewItem?: (itemId: string) => void;
-  onAddToCart?: (itemId: string) => void;
+  onAddToCart?: (itemId: string, quantity?: number) => void;
   onRemoveFromWishlist?: (itemId: string) => void;
   onViewAll?: () => void;
 }
@@ -70,11 +70,11 @@ export default function Wishlist({
     }
   };
 
-  const handleAddToCart = (itemId: string) => {
+  const handleAddToCart = (itemId: string, quantity: number = 1) => {
     if (onAddToCart) {
-      onAddToCart(itemId);
+      onAddToCart(itemId, quantity);
     } else {
-      console.log('Add to cart:', itemId);
+      console.log('Add to cart:', itemId, 'quantity:', quantity);
     }
   };
 
@@ -145,38 +145,15 @@ export default function Wishlist({
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {wishlistItems.slice(0, 6).map((item) => (
-                <div 
-                  key={item.id} 
-                  className="aspect-square rounded-lg flex items-center justify-center relative group cursor-pointer hover:scale-105 transition-transform duration-200 overflow-hidden"
-                  onClick={() => handleViewItem(item.id)}
-                  style={{
-                    backgroundImage: item.image ? `url(${item.image})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                >
-                  {/* Fallback gradient background when no image */}
-                  {!item.image && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900"></div>
-                  )}
-                  
-                  {/* Heart Icon - only show when no image and not hovering */}
-                  {!item.image && (
-                    <Heart className="w-4 h-4 text-pink-500 fill-current relative z-10 group-hover:opacity-0 transition-opacity duration-200" />
-                  )}
-                  
-                  {/* Stock status indicator */}
-                  {!item.inStock && (
-                    <div className="absolute top-1 right-1 z-30">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    </div>
-                  )}
-                  
-                  {/* Hover overlay with item info */}
-                  <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex flex-col items-center justify-center p-2">
-                    <p className="text-white text-xs font-medium text-center line-clamp-2">{item.name}</p>
-                  </div>
-                </div>
+                <WishlistProductCard
+                  key={item.id}
+                  product={item}
+                  onViewClick={handleViewItem}
+                  onAddToCart={handleAddToCart}
+                  onRemoveFromWishlist={handleRemoveFromWishlist}
+                  showActions={showActions}
+                  isCompact={true}
+                />
               ))}
               
               {/* Show placeholder boxes if less than 6 items */}
@@ -195,7 +172,7 @@ export default function Wishlist({
     );
   }
 
-  // Full version for dedicated wishlist page using ProductCard
+  // Full version for dedicated wishlist page using WishlistProductCard
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -243,26 +220,15 @@ export default function Wishlist({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {wishlistItems.map((item) => (
-            <div key={item.id} className="relative">
-              <ProductCard
-                product={item}
-                onPurchaseClick={() => handleAddToCart(item.id)}
-                onViewClick={() => handleViewItem(item.id)}
-                showQuantity={false}
-                purchaseButtonText="Add to Cart"
-              />
-              {/* Remove from wishlist button */}
-              {showActions && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleRemoveFromWishlist(item.id)}
-                  className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-full"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
+            <WishlistProductCard
+              key={item.id}
+              product={item}
+              onViewClick={handleViewItem}
+              onAddToCart={handleAddToCart}
+              onRemoveFromWishlist={handleRemoveFromWishlist}
+              showActions={showActions}
+              isCompact={false}
+            />
           ))}
         </div>
       )}

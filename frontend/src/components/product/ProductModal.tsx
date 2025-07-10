@@ -11,13 +11,14 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/library/utils";
+import { useIsItemLoading } from '../../../lib/profile/useWishListStore';
 import type { Product } from '../../../types/product';
 
 interface ProductModalProps {
   product: Product;
   isOpen: boolean;
   onClose: () => void;
-  onHeartClick?: () => void;
+  onHeartClick?: (e: React.MouseEvent) => void;
   onPurchaseClick?: () => void;
   showQuantity?: boolean;
   purchaseButtonText?: string;
@@ -36,10 +37,13 @@ export const ProductModal = ({
   disabled = false,
   isInWishlist = false,
 }: ProductModalProps) => {
+  const isWishlistLoading = useIsItemLoading(product.id);
+  
   if (!isOpen) return null;
 
-  const handleHeartClick = () => {
-    onHeartClick?.();
+  const handleHeartClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onHeartClick?.(e);
   };
 
   const handlePurchaseClick = () => {
@@ -94,9 +98,11 @@ export const ProductModal = ({
                 "absolute top-4 right-4",
                 isInWishlist 
                   ? "bg-red-500 hover:bg-red-600 text-white" 
-                  : "bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700"
+                  : "bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700",
+                isWishlistLoading && "opacity-50 cursor-not-allowed"
               )}
               onClick={handleHeartClick}
+              disabled={isWishlistLoading}
             >
               <Heart className={cn("w-5 h-5", isInWishlist && "fill-current")} />
             </Button>
@@ -202,12 +208,17 @@ export const ProductModal = ({
                   "w-full py-3",
                   isInWishlist 
                     ? "border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20" 
-                    : "border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900"
+                    : "border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900",
+                  isWishlistLoading && "opacity-50 cursor-not-allowed"
                 )}
                 onClick={handleHeartClick}
+                disabled={isWishlistLoading}
               >
                 <Heart className={cn("w-4 h-4 mr-2", isInWishlist && "fill-current")} />
-                {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                {isWishlistLoading 
+                  ? 'Updating...' 
+                  : (isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist')
+                }
               </Button>
             </div>
           </div>

@@ -126,10 +126,18 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100">
-            <Bell className="w-4 h-4 mr-2" />
-            Notifications
-          </Button>
+          {/* <Button 
+            variant="ghost" 
+            className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 relative"
+            onClick={() => router.push('/dashboard/cart')} // You can adjust this route as needed
+          >
+            <ShoppingBag className="w-4 h-4 mr-2" />
+            Cart
+            {/* Optional: Add a cart item count badge */}
+            {/* <Badge className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs min-w-[1.25rem] h-5 flex items-center justify-center rounded-full">
+              {cartItemCount}
+            </Badge>
+          </Button> */}
           <Button 
             variant="outline"
             onClick={handleLogout}
@@ -140,7 +148,6 @@ export default function Dashboard() {
           </Button>
         </div>
       </header>
-
       {/* Welcome Section */}
       <section className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">

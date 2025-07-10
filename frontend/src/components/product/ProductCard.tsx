@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/library/utils";
 import { ProductModal } from './ProductModal';
-import { useWishlistStore, useIsInWishlist } from '../../../lib/profile/useWishListStore';
+import { useWishlistStore, useIsInWishlist, useIsItemLoading } from '../../../lib/profile/useWishListStore';
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
 import type { Product } from '../../../types/product';
 
@@ -36,17 +36,16 @@ export const ProductCard = ({
   className
 }: ProductCardProps) => {
   const { user } = useAuthStore();
-  const { toggleWishlist, isLoading: wishlistLoading } = useWishlistStore();
+  const { toggleWishlist } = useWishlistStore();
   const isInWishlist = useIsInWishlist(product.id);
+  const isWishlistLoading = useIsItemLoading(product.id);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleViewClick = () => {
-    // Only open modal for quick view, don't call onViewClick
     setIsModalOpen(true);
   };
 
   const handleCardClick = () => {
-    // Only open modal, don't trigger onViewClick which causes navigation
     setIsModalOpen(true);
   };
 
@@ -54,7 +53,6 @@ export const ProductCard = ({
     e.stopPropagation();
     
     if (!user?.uid) {
-      // Handle unauthenticated user - you might want to show login modal
       console.log('User must be logged in to use wishlist');
       return;
     }
@@ -147,10 +145,10 @@ export const ProductCard = ({
               isInWishlist 
                 ? "bg-red-500 hover:bg-red-600 text-white" 
                 : "bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700",
-              wishlistLoading && "opacity-50 cursor-not-allowed"
+              isWishlistLoading && "opacity-50 cursor-not-allowed"
             )}
             onClick={handleHeartClick}
-            disabled={wishlistLoading}
+            disabled={isWishlistLoading}
           >
             <Heart className={cn("w-4 h-4", isInWishlist && "fill-current")} />
           </Button>
@@ -239,16 +237,16 @@ export const ProductCard = ({
                 isInWishlist 
                   ? "text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20" 
                   : "text-rose-700 dark:text-rose-300",
-                wishlistLoading && "opacity-50 cursor-not-allowed"
+                isWishlistLoading && "opacity-50 cursor-not-allowed"
               )}
               onClick={(e) => {
                 e.stopPropagation();
                 handleHeartClick(e);
               }}
-              disabled={wishlistLoading}
+              disabled={isWishlistLoading}
             >
               <Heart className={cn("w-4 h-4 mr-2", isInWishlist && "fill-current")} />
-              {wishlistLoading ? 'Updating...' : (isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist')}
+              {isWishlistLoading ? 'Updating...' : (isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist')}
             </Button>
           </div>
         </div>
@@ -259,10 +257,13 @@ export const ProductCard = ({
         product={product}
         isOpen={isModalOpen}
         onClose={closeModal}
+        onHeartClick={handleHeartClick}
         onPurchaseClick={onPurchaseClick}
         showQuantity={showQuantity}
         purchaseButtonText={purchaseButtonText}
         disabled={disabled}
+        isInWishlist={isInWishlist}
+        //isWishlistLoading={isWishlistLoading}
       />
     </>
   );

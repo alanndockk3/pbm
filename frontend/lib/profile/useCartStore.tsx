@@ -1,28 +1,30 @@
+// Updated useCartStore.ts with simplified add to cart function
+// Replace your existing cart store with this version
+
 import { create } from 'zustand';
 import { 
   collection, 
   doc, 
   getDocs, 
-  addDoc, 
+  setDoc, 
   updateDoc, 
   deleteDoc, 
   onSnapshot, 
-  query, 
-  where,
   serverTimestamp,
-  Timestamp 
+  Timestamp,
+  getDoc 
 } from 'firebase/firestore';
 import { db } from '../../client/firebaseConfig';
 
 // Cart item interface
 export interface CartItem {
-  id: string;
+  id: string; // This will be the productId
   productId: string;
   name: string;
   price: number;
   description?: string;
   category?: string;
-  images?: string[];
+  image?: string; // Single image URL
   inStock?: boolean;
   quantity: number;
   addedAt: Timestamp;
@@ -36,7 +38,7 @@ interface FirestoreCartItem {
   price: number;
   description?: string;
   category?: string;
-  images?: string[];
+  image?: string;
   inStock?: boolean;
   quantity: number;
   addedAt: Timestamp;
@@ -50,7 +52,7 @@ interface CartState {
   
   // Actions
   loadCart: (userId: string) => Promise<void>;
-  addToCart: (userId: string, productId: string, product: Partial<CartItem>, quantity?: number) => Promise<void>;
+  addToCart: (userId: string, product: any, quantity?: number) => Promise<void>;
   updateCartItemQuantity: (userId: string, productId: string, quantity: number) => Promise<void>;
   removeFromCart: (userId: string, productId: string) => Promise<void>;
   clearCart: (userId: string) => Promise<void>;
@@ -70,16 +72,19 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   loadCart: async (userId: string) => {
     try {
+      console.log('Loading cart for user:', userId);
       set({ loading: true, error: null });
       
       const cartRef = collection(db, 'users', userId, 'cart');
       const snapshot = await getDocs(cartRef);
       
       const items: CartItem[] = snapshot.docs.map(doc => ({
-        id: doc.id,
+        id: doc.id, // Document ID is the productId
+        productId: doc.id, // Same as document ID
         ...doc.data()
       } as CartItem));
       
+      console.log('Loaded cart items:', items);
       set({ items, loading: false });
     } catch (error) {
       console.error('Error loading cart:', error);
@@ -90,57 +95,65 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addToCart: async (userId: string, productId: string, product: Partial<CartItem>, quantity = 1) => {
+  addToCart: async (userId: string, product: any, quantity = 1) => {
     try {
+      console.log('Adding to cart:', { userId, productId: product.id, quantity });
       set({ loading: true, error: null });
       
-      const cartRef = collection(db, 'users', userId, 'cart');
+      const productId = product.id;
+      const cartItemRef = doc(db, 'users', userId, 'cart', productId);
       
-      // Check if item already exists in cart
-      const existingItems = get().items;
-      const existingItem = existingItems.find(item => item.productId === productId);
+      // Check if item already exists
+      const existingDoc = await getDoc(cartItemRef);
       
-      if (existingItem) {
-        // Update quantity if item exists
-        await get().updateCartItemQuantity(userId, productId, existingItem.quantity + quantity);
+      if (existingDoc.exists()) {
+        // Update existing item quantity
+        const existingData = existingDoc.data() as FirestoreCartItem;
+        const newQuantity = existingData.quantity + quantity;
+        
+        await updateDoc(cartItemRef, {
+          quantity: newQuantity,
+          updatedAt: serverTimestamp(),
+        });
+        
+        console.log('Updated existing cart item quantity to:', newQuantity);
       } else {
-        // Add new item to cart
+        // Create new cart item with productId as document ID
         const cartItem: FirestoreCartItem = {
-          productId,
+          productId: productId,
           name: product.name || '',
           price: product.price || 0,
           description: product.description,
           category: product.category,
-          images: product.images,
-          inStock: product.inStock,
-          quantity,
+          image: product.image, // Single image
+          inStock: product.inStock !== false, // Default to true if not specified
+          quantity: quantity,
           addedAt: serverTimestamp() as Timestamp,
           updatedAt: serverTimestamp() as Timestamp,
         };
         
-        await addDoc(cartRef, cartItem);
+        await setDoc(cartItemRef, cartItem);
+        console.log('Created new cart item:', cartItem);
       }
       
+      // Reload cart to get updated data
+      await get().loadCart(userId);
       set({ loading: false });
+      
     } catch (error) {
       console.error('Error adding to cart:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to add to cart',
         loading: false 
       });
+      throw error; // Re-throw so caller can handle it
     }
   },
 
   updateCartItemQuantity: async (userId: string, productId: string, quantity: number) => {
     try {
+      console.log('Updating cart item quantity:', { userId, productId, quantity });
       set({ loading: true, error: null });
-      
-      const existingItems = get().items;
-      const existingItem = existingItems.find(item => item.productId === productId);
-      
-      if (!existingItem) {
-        throw new Error('Item not found in cart');
-      }
       
       if (quantity <= 0) {
         // Remove item if quantity is 0 or less
@@ -148,13 +161,20 @@ export const useCartStore = create<CartState>((set, get) => ({
         return;
       }
       
-      const cartItemRef = doc(db, 'users', userId, 'cart', existingItem.id);
+      const cartItemRef = doc(db, 'users', userId, 'cart', productId);
       await updateDoc(cartItemRef, {
         quantity,
         updatedAt: serverTimestamp(),
       });
       
-      set({ loading: false });
+      // Update local state
+      const items = get().items.map(item => 
+        item.productId === productId 
+          ? { ...item, quantity, updatedAt: new Date() as any }
+          : item
+      );
+      
+      set({ items, loading: false });
     } catch (error) {
       console.error('Error updating cart item quantity:', error);
       set({ 
@@ -166,19 +186,16 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   removeFromCart: async (userId: string, productId: string) => {
     try {
+      console.log('Removing from cart:', { userId, productId });
       set({ loading: true, error: null });
       
-      const existingItems = get().items;
-      const existingItem = existingItems.find(item => item.productId === productId);
-      
-      if (!existingItem) {
-        throw new Error('Item not found in cart');
-      }
-      
-      const cartItemRef = doc(db, 'users', userId, 'cart', existingItem.id);
+      const cartItemRef = doc(db, 'users', userId, 'cart', productId);
       await deleteDoc(cartItemRef);
       
-      set({ loading: false });
+      // Update local state
+      const items = get().items.filter(item => item.productId !== productId);
+      set({ items, loading: false });
+      
     } catch (error) {
       console.error('Error removing from cart:', error);
       set({ 
@@ -190,6 +207,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearCart: async (userId: string) => {
     try {
+      console.log('Clearing cart for user:', userId);
       set({ loading: true, error: null });
       
       const cartRef = collection(db, 'users', userId, 'cart');
@@ -199,6 +217,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       await Promise.all(deletePromises);
       
       set({ items: [], loading: false });
+      console.log('Cart cleared successfully');
     } catch (error) {
       console.error('Error clearing cart:', error);
       set({ 
@@ -209,15 +228,18 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   subscribeToCart: (userId: string) => {
+    console.log('Subscribing to cart changes for user:', userId);
     const cartRef = collection(db, 'users', userId, 'cart');
     
     return onSnapshot(cartRef, 
       (snapshot) => {
         const items: CartItem[] = snapshot.docs.map(doc => ({
           id: doc.id,
+          productId: doc.id, // Document ID is the productId
           ...doc.data()
         } as CartItem));
         
+        console.log('Cart updated via subscription:', items);
         set({ items, error: null });
       },
       (error) => {
