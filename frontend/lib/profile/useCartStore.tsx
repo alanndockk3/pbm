@@ -1,5 +1,5 @@
-// Updated useCartStore.ts with simplified add to cart function
-// Replace your existing cart store with this version
+// Firebase-connected cart store
+// Replace your local cart store with this version
 
 import { create } from 'zustand';
 import { 
@@ -27,8 +27,8 @@ export interface CartItem {
   image?: string; // Single image URL
   inStock?: boolean;
   quantity: number;
-  addedAt: Timestamp;
-  updatedAt: Timestamp;
+  addedAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
 }
 
 // Firestore cart item (what gets stored in Firebase)
@@ -84,7 +84,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         ...doc.data()
       } as CartItem));
       
-      console.log('Loaded cart items:', items);
+      console.log('Loaded cart items from Firebase:', items);
       set({ items, loading: false });
     } catch (error) {
       console.error('Error loading cart:', error);
@@ -133,11 +133,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         };
         
         await setDoc(cartItemRef, cartItem);
-        console.log('Created new cart item:', cartItem);
+        console.log('Created new cart item in Firebase:', cartItem);
       }
       
-      // Reload cart to get updated data
-      await get().loadCart(userId);
+      // Reload cart to get updated data (optional - real-time listener will handle this)
+      // await get().loadCart(userId);
       set({ loading: false });
       
     } catch (error) {
@@ -167,14 +167,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         updatedAt: serverTimestamp(),
       });
       
-      // Update local state
-      const items = get().items.map(item => 
-        item.productId === productId 
-          ? { ...item, quantity, updatedAt: new Date() as any }
-          : item
-      );
-      
-      set({ items, loading: false });
+      console.log('Updated cart item quantity in Firebase:', quantity);
+      set({ loading: false });
     } catch (error) {
       console.error('Error updating cart item quantity:', error);
       set({ 
@@ -192,9 +186,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       const cartItemRef = doc(db, 'users', userId, 'cart', productId);
       await deleteDoc(cartItemRef);
       
-      // Update local state
-      const items = get().items.filter(item => item.productId !== productId);
-      set({ items, loading: false });
+      console.log('Removed item from Firebase cart:', productId);
+      set({ loading: false });
       
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -216,8 +209,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
       
-      set({ items: [], loading: false });
-      console.log('Cart cleared successfully');
+      console.log('Cart cleared successfully in Firebase');
+      set({ loading: false });
     } catch (error) {
       console.error('Error clearing cart:', error);
       set({ 
@@ -239,12 +232,12 @@ export const useCartStore = create<CartState>((set, get) => ({
           ...doc.data()
         } as CartItem));
         
-        console.log('Cart updated via subscription:', items);
-        set({ items, error: null });
+        console.log('Cart updated via real-time subscription:', items);
+        set({ items, error: null, loading: false });
       },
       (error) => {
         console.error('Error in cart subscription:', error);
-        set({ error: error.message });
+        set({ error: error.message, loading: false });
       }
     );
   },

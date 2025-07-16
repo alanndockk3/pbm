@@ -8,16 +8,23 @@ import {
   Grid3X3,
   List,
   Package,
-  ArrowLeft,
-  Heart,
   ShoppingBag,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useProductStore, useProducts, useCategories } from '../../../../lib/product/useProductStore';
 import { ProductCard } from '@/components/product/ProductCard';
+import { useAuthStore } from '../../../../lib/auth/useAuthStore';
+import { useCartStore, useCartTotalItems } from '../../../../lib/profile/useCartStore';
+import Header from '@/components/Header'; // Import the enhanced Header
 
 export default function ProductsPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const { addToCart } = useCartStore();
+  const cartTotalItems = useCartTotalItems();
+  
   const initializeProducts = useProductStore(state => state.initializeProducts);
   const searchProducts = useProductStore(state => state.searchProducts);
   const products = useProducts();
@@ -27,6 +34,8 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('name');
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [recentlyAdded, setRecentlyAdded] = useState<string | null>(null);
 
   // Initialize products when component mounts
   useEffect(() => {
@@ -66,76 +75,90 @@ export default function ProductsPage() {
 
   const filteredProducts = getFilteredProducts();
 
-  const handleProductAction = (product: any) => {
-    // Handle product actions like view, add to wishlist, purchase
-    console.log('Product action:', product);
+  const handleProductAction = async (product: any) => {
+    if (!user?.uid) {
+      console.log('User must be logged in to add to cart');
+      router.push('/auth');
+      return;
+    }
+
+    if (!product.inStock) {
+      console.log('Product is out of stock');
+      return;
+    }
+
+    try {
+      setAddingToCart(product.id);
+      await addToCart(user.uid, product, 1);
+      
+      console.log('Product added to cart successfully!', product.name);
+      
+      // Show success feedback
+      setRecentlyAdded(product.id);
+      setTimeout(() => setRecentlyAdded(null), 2000);
+      
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
+  const handleCartNavigation = () => {
+    router.push('/dashboard/cart');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
-            {/* Header */}
-            <header className="container mx-auto px-4 py-6 flex justify-between items-center">
-  <div className="flex items-center gap-3">
-    <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-      <Heart className="w-5 h-5 text-white" />
-    </div>
-    <div>
-      <h1 className="text-xl font-bold text-rose-800 dark:text-rose-200">PBM</h1>
-      <p className="text-xs text-rose-600 dark:text-rose-300">Pretties by Marg</p>
-    </div>
-  </div>
-  <div className="flex items-center gap-4">
-    <Button 
-      variant="outline" 
-      className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 relative"
-      onClick={() => router.push('/dashboard/cart')} // You can adjust this route as needed
-    >
-      <ShoppingBag className="w-4 h-4 mr-2" />
-      Cart
-    </Button>
-  </div>
-</header>
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex flex-col gap-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => router.push('/dashboard')}
-              className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 self-start"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">Products</h1>
-              <p className="text-rose-600 dark:text-rose-400">Browse our handmade collection</p>
-            </div>
+
+      {/* Page Title and Controls */}
+      <section className="container mx-auto px-4 py-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+          {/* Page Title */}
+          <div>
+            <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100 mb-2">Products</h1>
+            <p className="text-rose-600 dark:text-rose-400">Browse our handmade collection</p>
           </div>
           
-          {/* View mode toggle */}
-          <div className="flex items-center gap-2 bg-white/50 dark:bg-rose-900/50 rounded-lg p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className={viewMode === 'grid' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : ''}
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className={viewMode === 'list' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : ''}
-            >
-              <List className="w-4 h-4" />
-            </Button>
+          {/* View Mode Toggle and Cart Info */}
+          <div className="flex items-center gap-4">
+            {/* Cart Info */}
+            {cartTotalItems > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCartNavigation}
+                className="border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400"
+              >
+                <ShoppingBag className="w-4 h-4 mr-1" />
+                {cartTotalItems} item{cartTotalItems !== 1 ? 's' : ''} in cart
+              </Button>
+            )}
+            
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2 bg-white/50 dark:bg-rose-900/50 rounded-lg p-1">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={viewMode === 'grid' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : ''}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={viewMode === 'list' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : ''}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Filters and Search */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
@@ -179,7 +202,7 @@ export default function ProductsPage() {
             Showing {filteredProducts.length} of {products.length} products
           </p>
         </div>
-      </header>
+      </section>
 
       {/* Products Grid */}
       <section className="container mx-auto px-4 pb-12">
@@ -200,13 +223,35 @@ export default function ProductsPage() {
               : 'grid-cols-1 md:grid-cols-2'
           }`}>
             {filteredProducts.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product}
-                onPurchaseClick={() => handleProductAction(product)}
-                purchaseButtonText="Add to Cart"
-                showQuantity={true}
-              />
+              <div key={product.id} className="relative">
+                <ProductCard 
+                  product={product}
+                  onPurchaseClick={() => handleProductAction(product)}
+                  purchaseButtonText={
+                    addingToCart === product.id 
+                      ? "Adding..." 
+                      : recentlyAdded === product.id 
+                        ? "Added!" 
+                        : "Add to Cart"
+                  }
+                  disabled={addingToCart === product.id || !product.inStock}
+                  showQuantity={true}
+                />
+                
+                {/* Success indicator */}
+                {recentlyAdded === product.id && (
+                  <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-2 animate-pulse">
+                    <CheckCircle className="w-4 h-4" />
+                  </div>
+                )}
+                
+                {/* Out of stock indicator */}
+                {!product.inStock && (
+                  <div className="absolute top-2 left-2 bg-red-500 text-white rounded-full p-2">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

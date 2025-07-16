@@ -114,40 +114,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-            <Heart className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-rose-800 dark:text-rose-200">PBM</h1>
-            <p className="text-xs text-rose-600 dark:text-rose-300">Pretties by Marg</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* <Button 
-            variant="ghost" 
-            className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 relative"
-            onClick={() => router.push('/dashboard/cart')} // You can adjust this route as needed
-          >
-            <ShoppingBag className="w-4 h-4 mr-2" />
-            Cart
-            {/* Optional: Add a cart item count badge */}
-            {/* <Badge className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs min-w-[1.25rem] h-5 flex items-center justify-center rounded-full">
-              {cartItemCount}
-            </Badge>
-          </Button> */}
-          <Button 
-            variant="outline"
-            onClick={handleLogout}
-            className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </header>
       {/* Welcome Section */}
       <section className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
