@@ -338,7 +338,7 @@ export const useUserOrders = (userId: string | null) => {
 export const useOrderActions = () => {
   const store = useOrderStore();
   return {
-    createOrder: store.createLocalOrder, // For testing
+    createOrder: store.createLocalOrder,
     getOrder: store.getOrder,
     updateOrderStatus: store.updateOrderStatus,
     updateOrderTracking: store.updateOrderTracking,
