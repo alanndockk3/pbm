@@ -15,7 +15,7 @@ import {
   doc 
 } from 'firebase/firestore';
 import { db } from '../../../../client/firebaseConfig';
-import { CreditCard, Lock, Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { CreditCard, Lock, Loader2, CheckCircle, AlertCircle, ArrowLeft, MapPin } from 'lucide-react';
 
 type PaymentState = 'idle' | 'creating' | 'redirecting' | 'success' | 'error';
 
@@ -85,7 +85,7 @@ export const FirebaseStripePayment = () => {
                     quantity: item.quantity,
                     image: item.image
                 }))),
-                // Store shipping address for order creation
+                // Store shipping address for order creation (if collected locally)
                 shippingFirstName: shippingAddress.firstName || '',
                 shippingLastName: shippingAddress.lastName || '',
                 shippingPhone: shippingAddress.phone || '',
@@ -99,19 +99,22 @@ export const FirebaseStripePayment = () => {
                 estimatedDeliveryDays: shippingOption?.estimatedDays || '5-7 days'
             };
 
-            // Create checkout session document
+            // Create checkout session document with enhanced shipping collection
             const checkoutSessionRef = await addDoc(
                 collection(db, 'users', user.uid, 'checkout_sessions'),
                 {
                     mode: 'payment',
                     billing_address_collection: 'required',
+                    
+                    // Enhanced shipping address collection - use both methods for compatibility
+                    collect_shipping_address: true, // For broader Stripe compatibility
                     shipping_address_collection: {
-                        allowed_countries: [
-                            'US'
-                        ]
+                        allowed_countries: ['US'] // Specific countries allowed
                     },
+                    
                     line_items,
 
+                    // Add shipping options if shipping cost > 0
                     ...(shippingRate > 0 && {
                         shipping_options: [
                             {
@@ -137,11 +140,28 @@ export const FirebaseStripePayment = () => {
                         ]
                     }),
 
+                    // Enable promotional codes
                     allow_promotion_codes: true,
+                    
+                    // Enhanced URLs with session information
                     success_url: `${window.location.origin}/dashboard/checkout/stripe-success?session_id={CHECKOUT_SESSION_ID}`,
-                    cancel_url: `${window.location.origin}/dashboard/checkout`,
+                    cancel_url: `${window.location.origin}/dashboard/checkout/cancelled`,
+                    
+                    // Pre-fill customer email
                     customer_email: user.email,
+                    
+                    // Enhanced metadata for order processing
                     metadata: sessionMetadata,
+                    
+                    // Optional: Add phone number collection
+                    phone_number_collection: {
+                        enabled: true
+                    },
+                    
+                    // Optional: Add consent collection for terms
+                    consent_collection: {
+                        terms_of_service: 'required'
+                    }
                 }
             );
 
@@ -175,6 +195,7 @@ export const FirebaseStripePayment = () => {
                 }
             );
 
+            // Timeout handling
             setTimeout(() => {
                 if (paymentState === 'redirecting') {
                     setErrorMessage('Checkout session creation timed out. Please try again.');
@@ -252,9 +273,9 @@ export const FirebaseStripePayment = () => {
                         </p>
                         {paymentState === 'redirecting' && (
                             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                <p className="text-blue-700 dark:text-blue-300 text-sm">
-                                    <Lock className="w-4 h-4 inline mr-1" />
-                                    Stripe will handle shipping and payment processing
+                                <p className="text-blue-700 dark:text-blue-300 text-sm flex items-center justify-center gap-2">
+                                    <MapPin className="w-4 h-4" />
+                                    Stripe will collect shipping address and handle payment processing
                                 </p>
                             </div>
                         )}
@@ -306,6 +327,21 @@ export const FirebaseStripePayment = () => {
                 {/* Idle State - Ready to Checkout */}
                 {paymentState === 'idle' && (
                     <>
+                        {/* Shipping Collection Notice */}
+                        <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                                <MapPin className="w-6 h-6 text-green-600" />
+                                <div>
+                                    <h4 className="font-medium text-green-800 dark:text-green-200">
+                                        Shipping Address Collection Enabled
+                                    </h4>
+                                    <p className="text-green-600 dark:text-green-300 text-sm">
+                                        Stripe will collect and validate your shipping address during checkout.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Payment Info */}
                         <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                             <div className="flex items-center gap-3">
@@ -315,7 +351,7 @@ export const FirebaseStripePayment = () => {
                                         Secure Stripe Checkout
                                     </h4>
                                     <p className="text-blue-600 dark:text-blue-300 text-sm">
-                                        Tax calculation, shipping, and payment processing handled automatically by Stripe.
+                                        Tax calculation, shipping validation, and payment processing handled automatically.
                                     </p>
                                 </div>
                             </div>
@@ -329,15 +365,15 @@ export const FirebaseStripePayment = () => {
                             </div>
                             <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                                 <CheckCircle className="w-4 h-4" />
+                                <span>Address validation & collection</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                                <CheckCircle className="w-4 h-4" />
                                 <span>Multiple payment methods</span>
                             </div>
                             <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                                 <CheckCircle className="w-4 h-4" />
-                                <span>Address validation</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                                <CheckCircle className="w-4 h-4" />
-                                <span>Mobile optimized</span>
+                                <span>Phone number collection</span>
                             </div>
                         </div>
 
@@ -375,7 +411,7 @@ export const FirebaseStripePayment = () => {
                                 </div>
                             </div>
                             <p className="text-xs text-rose-500 dark:text-rose-500 mt-2">
-                                * Final total will be calculated by Stripe based on your address
+                                * Final total will be calculated by Stripe based on your shipping address
                             </p>
                         </div>
 

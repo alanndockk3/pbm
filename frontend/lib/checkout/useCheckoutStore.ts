@@ -46,6 +46,11 @@ export interface CheckoutSession {
   totals: OrderTotals; // Use OrderTotals from order types
   paymentIntentId?: string;
   orderId?: string;
+  // Add shipping collection flag
+  collectShippingAddress: boolean;
+  // Add success/cancel URLs for Stripe
+  successUrl?: string;
+  cancelUrl?: string;
 }
 
 interface CheckoutState extends CheckoutSession {
@@ -59,11 +64,17 @@ interface CheckoutState extends CheckoutSession {
   updateTotals: (totals: Partial<OrderTotals>) => void;
   setPaymentIntentId: (id: string) => void;
   setOrderId: (id: string) => void;
+  setCollectShippingAddress: (collect: boolean) => void;
+  setSuccessUrl: (url: string) => void;
+  setCancelUrl: (url: string) => void;
   resetCheckout: () => void;
   
   // Computed
   isStepValid: (step: number) => boolean;
   canProceedToNext: () => boolean;
+  
+  // Stripe Checkout Session helpers
+  getStripeCheckoutSessionData: () => any;
 }
 
 const initialState: CheckoutSession = {
@@ -80,7 +91,10 @@ const initialState: CheckoutSession = {
     shipping: 0,
     tax: 0,
     total: 0
-  }
+  },
+  collectShippingAddress: true, // Default to collecting shipping
+  successUrl: typeof window !== 'undefined' ? window.location.origin + '/dashboard/checkout/success' : '',
+  cancelUrl: typeof window !== 'undefined' ? window.location.origin + '/dashboard/checkout/cancelled' : ''
 };
 
 export const useCheckoutStore = create<CheckoutState>()(
@@ -132,6 +146,12 @@ export const useCheckoutStore = create<CheckoutState>()(
 
       setOrderId: (orderId) => set({ orderId }),
 
+      setCollectShippingAddress: (collectShippingAddress) => set({ collectShippingAddress }),
+
+      setSuccessUrl: (successUrl) => set({ successUrl }),
+
+      setCancelUrl: (cancelUrl) => set({ cancelUrl }),
+
       resetCheckout: () => set(initialState),
 
       // Validation helpers
@@ -140,6 +160,10 @@ export const useCheckoutStore = create<CheckoutState>()(
         
         switch (step) {
           case 1: // Shipping
+            // If collecting shipping via Stripe, we might not need all fields
+            if (state.collectShippingAddress && state.paymentMethod.type === 'stripe_checkout') {
+              return true; // Stripe will collect this
+            }
             const { firstName, lastName, email, address1, city, state: stateField, zipCode } = state.shippingAddress;
             return !!(firstName && lastName && email && address1 && city && stateField && zipCode);
           
@@ -157,6 +181,69 @@ export const useCheckoutStore = create<CheckoutState>()(
       canProceedToNext: () => {
         const state = get();
         return state.isStepValid(state.step);
+      },
+
+      // Helper to get Stripe Checkout Session data
+      getStripeCheckoutSessionData: () => {
+        const state = get();
+        
+        return {
+          collect_shipping_address: state.collectShippingAddress,
+          success_url: state.successUrl || `${window.location.origin}/dashboard/checkout/success`,
+          cancel_url: state.cancelUrl || `${window.location.origin}/dashboard/checkout/cancelled`,
+          // Add line items based on cart items
+          line_items: state.items.map(item => ({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: item.name,
+                images: item.image ? [item.image] : [],
+                metadata: {
+                  productId: item.productId,
+                  category: item.category || 'Handmade'
+                }
+              },
+              unit_amount: Math.round(item.price * 100), // Convert to cents
+            },
+            quantity: item.quantity,
+          })),
+          // Add shipping if selected
+          ...(state.shippingOption && state.shippingOption.price > 0 && {
+            shipping_options: [{
+              shipping_rate_data: {
+                type: 'fixed_amount',
+                fixed_amount: {
+                  amount: Math.round(state.shippingOption.price * 100),
+                  currency: 'usd',
+                },
+                display_name: state.shippingOption.name,
+                delivery_estimate: {
+                  minimum: {
+                    unit: 'business_day',
+                    value: parseInt(state.shippingOption.estimatedDays.split('-')[0]) || 5,
+                  },
+                  maximum: {
+                    unit: 'business_day',
+                    value: parseInt(state.shippingOption.estimatedDays.split('-')[1]) || 7,
+                  },
+                },
+              },
+            }]
+          }),
+          // Add customer email if available
+          ...(state.shippingAddress.email && {
+            customer_email: state.shippingAddress.email
+          }),
+          // Add metadata for order tracking
+          metadata: {
+            orderId: state.orderId || `order_${Date.now()}`,
+            totalItems: state.items.length.toString(),
+            subtotal: state.totals.subtotal.toFixed(2),
+            shipping: state.totals.shipping.toFixed(2),
+            tax: state.totals.tax.toFixed(2),
+            total: state.totals.total.toFixed(2),
+          }
+        };
       }
     }),
     {
@@ -168,7 +255,10 @@ export const useCheckoutStore = create<CheckoutState>()(
         billingAddress: state.billingAddress,
         shippingOption: state.shippingOption,
         items: state.items,
-        totals: state.totals
+        totals: state.totals,
+        collectShippingAddress: state.collectShippingAddress,
+        successUrl: state.successUrl,
+        cancelUrl: state.cancelUrl
       })
     }
   )

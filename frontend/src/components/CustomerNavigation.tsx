@@ -18,7 +18,8 @@ import {
   Home,
   Menu,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  ShoppingCart
 } from 'lucide-react';
 
 export function CustomerNavigation() {
@@ -57,6 +58,7 @@ export function CustomerNavigation() {
       title: "Shopping",
       items: [
         { path: '/dashboard/products', label: 'Browse Products', icon: ShoppingBag },
+        { path: '/dashboard/cart', label: 'Shopping Cart', icon: ShoppingCart, count: cartTotalItems },
         { path: '/dashboard/wishlist', label: 'Wishlist', icon: Heart, count: wishlistCount },
       ]
     },
@@ -269,7 +271,11 @@ export function CustomerNavigation() {
                             
                             {/* Show count badge for items that have one */}
                             {item.count !== undefined && item.count > 0 && (
-                              <Badge className="bg-pink-500 hover:bg-pink-600 text-white text-xs min-w-[1.25rem] h-5 flex items-center justify-center rounded-full">
+                              <Badge className={`text-white text-xs min-w-[1.25rem] h-5 flex items-center justify-center rounded-full ${
+                                item.path === '/dashboard/cart' 
+                                  ? 'bg-pink-500 hover:bg-pink-600' 
+                                  : 'bg-purple-500 hover:bg-purple-600'
+                              }`}>
                                 {item.count > 99 ? '99+' : item.count}
                               </Badge>
                             )}
