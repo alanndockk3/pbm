@@ -159,15 +159,31 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
                 {!item.image && (
                   <Heart className="w-6 h-6 text-pink-500 relative z-10 mb-2 group-hover:opacity-0 transition-all duration-300" />
                 )}
+
+                {/* Price overlay at bottom - always visible */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-2 z-10 transform translate-y-0 group-hover:translate-y-full transition-transform duration-300">
+                  <p className="text-white text-sm font-bold text-center">
+                    ${item.price.toFixed(2)}
+                  </p>
+                </div>
                 
-                {/* Product Info on Hover */}
-                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                  <p className="text-white text-sm font-medium text-center px-2 line-clamp-2">{item.name}</p>
+                {/* Product Info on Hover - slides up from bottom */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-3 z-20 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                  <div className="text-center text-white">
+                    <p className="font-medium text-sm line-clamp-2 mb-1">{item.name}</p>
+                    <p className="text-xs text-gray-200 line-clamp-1 mb-2">{item.category}</p>
+                    <div className="flex items-center justify-center gap-1 mb-2">
+                      <Star className="w-3 h-3 fill-current text-yellow-400" />
+                      <span className="text-xs">{item.rating}</span>
+                      <span className="text-xs text-gray-300">({item.reviews})</span>
+                    </div>
+                    <p className="font-bold text-sm">${item.price.toFixed(2)}</p>
+                  </div>
                 </div>
 
                 {/* Stock Status Badge */}
                 {!item.inStock && (
-                  <div className="absolute top-1 right-1 z-10">
+                  <div className="absolute top-1 right-1 z-30">
                     <Badge className="bg-red-500 text-white text-[10px] px-1 py-0">
                       Out
                     </Badge>

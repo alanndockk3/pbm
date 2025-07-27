@@ -1,14 +1,17 @@
+// components/account/wishlist/Wishlist.tsx
 'use client'
 
 import React, { useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Eye, ShoppingCart, X } from "lucide-react";
-import { WishlistProductCard } from './WishlistProductCard';
+import { Card, CardContent } from "@/components/ui/card";
+import { Heart } from "lucide-react";
+import WishlistCard from './WishlistCard';
+import { ProductCard } from '@/components/product/ProductCard'; // Using ProductCard instead
 import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../../lib/profile/useWishListStore';
 import { useProductStore, useProducts } from '../../../../lib/product/useProductStore';
 import type { Product } from '../../../../types/product';
+import type { StripeProduct } from '../../../../lib/product/useProductStore';
 
 interface WishlistProps {
   items?: Product[]; // Optional override for items
@@ -20,8 +23,29 @@ interface WishlistProps {
   onViewAll?: () => void;
 }
 
+// Helper function to convert Product to StripeProduct format
+const convertToStripeProduct = (product: Product): StripeProduct => {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    images: product.image ? [product.image] : [],
+    image: product.image ?? undefined,
+    price: product.price,
+    quantity: product.quantity,
+    rating: product.rating,
+    reviews: product.reviews,
+    category: product.category,
+    inStock: product.inStock,
+    isFeatured: product.isFeatured,
+    metadata: {},
+    active: true,
+    defaultPrice: undefined,
+  };
+};
+
 export default function Wishlist({
-  items, // If provided, use these items instead of fetching from store
+  items,
   isCompact = false,
   showActions = true,
   onViewItem,
@@ -32,7 +56,7 @@ export default function Wishlist({
   const { user } = useAuthStore();
   
   // Wishlist store
-  const { loadWishlist, removeFromWishlist, subscribeToWishlist } = useWishlistStore();
+  const { loadWishlist, removeFromWishlist: removeFromWishlistStore, subscribeToWishlist } = useWishlistStore();
   const wishlistProductIds = useWishlistItems();
   const wishlistLoading = useWishlistLoading();
   
@@ -43,13 +67,18 @@ export default function Wishlist({
   // Get actual product objects from wishlist IDs (only if items not provided)
   const wishlistItems = useMemo(() => {
     if (items) {
-      return items; // Use provided items if available
+      return items
     }
     
     return wishlistProductIds
       .map(productId => allProducts.find(product => product.id === productId))
       .filter(Boolean) as Product[];
   }, [items, wishlistProductIds, allProducts]);
+
+  // Convert to StripeProduct format for ProductCard
+  const stripeWishlistItems = useMemo(() => {
+    return wishlistItems.map(convertToStripeProduct);
+  }, [wishlistItems]);
 
   // Initialize data on mount (only if items not provided)
   useEffect(() => {
@@ -83,7 +112,7 @@ export default function Wishlist({
       onRemoveFromWishlist(itemId);
     } else if (user?.uid) {
       try {
-        await removeFromWishlist(user.uid, itemId);
+        await removeFromWishlistStore(user.uid, itemId);
       } catch (error) {
         console.error('Error removing from wishlist:', error);
       }
@@ -98,92 +127,25 @@ export default function Wishlist({
     }
   };
 
+  const handleProductAction = (product: StripeProduct) => {
+    handleAddToCart(product.id, 1);
+  };
+
   // Loading state (only show if items not provided and we're loading from store)
   const isLoading = !items && wishlistLoading;
 
   if (isCompact) {
-    // Compact version for dashboard
+    // Compact version for dashboard - use WishlistCard
     return (
-      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <CardTitle className="text-lg text-rose-900 dark:text-rose-100">Wishlist</CardTitle>
-                <CardDescription className="text-rose-700 dark:text-rose-300">
-                  {isLoading ? 'Loading...' : `${wishlistItems.length} ${wishlistItems.length === 1 ? 'item' : 'items'} you love`}
-                </CardDescription>
-              </div>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-purple-600 hover:text-purple-700"
-              onClick={handleViewAll}
-            >
-              View All
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center animate-pulse">
-                  <Heart className="w-4 h-4 text-pink-300" />
-                </div>
-              ))}
-            </div>
-          ) : wishlistItems.length === 0 ? (
-            <div className="text-center py-8">
-              <Heart className="w-12 h-12 text-rose-300 mx-auto mb-3" />
-              <p className="text-rose-600 dark:text-rose-400">Your wishlist is empty</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {wishlistItems.slice(0, 6).map((item) => (
-                <WishlistProductCard
-                  key={item.id}
-                  product={item}
-                  onViewClick={handleViewItem}
-                  onAddToCart={handleAddToCart}
-                  onRemoveFromWishlist={handleRemoveFromWishlist}
-                  showActions={showActions}
-                  isCompact={true}
-                />
-              ))}
-              
-              {/* Show placeholder boxes if less than 6 items */}
-              {Array.from({ length: Math.max(0, 6 - wishlistItems.length) }).map((_, index) => (
-                <div 
-                  key={`placeholder-${index}`} 
-                  className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-lg flex items-center justify-center opacity-50"
-                >
-                  <Heart className="w-4 h-4 text-gray-400" />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <WishlistCard 
+        onAddToCart={handleAddToCart}
+      />
     );
   }
 
-  // Full version for dedicated wishlist page using WishlistProductCard
+  // Full version for dedicated wishlist page
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">My Wishlist</h1>
-          <p className="text-rose-600 dark:text-rose-400">
-            {isLoading ? 'Loading...' : `${wishlistItems.length} ${wishlistItems.length === 1 ? 'item' : 'items'} saved`}
-          </p>
-        </div>
-      </div>
-
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
@@ -219,15 +181,14 @@ export default function Wishlist({
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {wishlistItems.map((item) => (
-            <WishlistProductCard
+          {stripeWishlistItems.map((item) => (
+            <ProductCard
               key={item.id}
               product={item}
-              onViewClick={handleViewItem}
-              onAddToCart={handleAddToCart}
-              onRemoveFromWishlist={handleRemoveFromWishlist}
-              showActions={showActions}
-              isCompact={false}
+              onPurchaseClick={() => handleProductAction(item)}
+              purchaseButtonText="Add to Cart"
+              showQuantity={true}
+              className="relative group"
             />
           ))}
         </div>

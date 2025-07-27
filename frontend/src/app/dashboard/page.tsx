@@ -1,3 +1,4 @@
+// Updated dashboard page with real order data
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import Footer from '@/components/footer';
 import Wishlist from '@/components/account/wishlist/Wishlist';
 import { WishlistProductModal } from '@/components/account/wishlist/WishlistProductModal';
+import { OrderCard } from '@/components/account/orders/OrderCard';
 import { 
   Heart, 
   Sparkles, 
@@ -23,6 +25,7 @@ import {
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
 import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../lib/profile/useWishListStore';
 import { useProductStore, useProducts } from '../../../lib/product/useProductStore';
+import { useUserOrders, useOrderActions } from '../../../lib/orders/useOrderStore';
 import type { Product } from '../../../types/product';
 
 export default function Dashboard() {
@@ -40,6 +43,14 @@ export default function Dashboard() {
   const { initializeProducts } = useProductStore();
   const allProducts = useProducts();
   
+  // Order store - using your existing implementation
+  const { orders: userOrders, isLoading: ordersLoading, error: ordersError } = useUserOrders(user?.uid || null);
+  const { getOrder } = useOrderActions();
+  
+  // Calculate order statistics
+  const orderCount = userOrders.length;
+  const recentOrders = userOrders.slice(0, 3); // Get first 3 orders
+  
   // Get actual product objects from wishlist IDs
   const wishlistItems = useMemo(() => {
     return wishlistProductIds
@@ -53,8 +64,12 @@ export default function Dashboard() {
       initializeProducts();
       loadWishlist(user.uid);
       
-      const unsubscribe = subscribeToWishlist(user.uid);
-      return unsubscribe;
+      const unsubscribeWishlist = subscribeToWishlist(user.uid);
+      // Note: useUserOrders hook handles loading orders automatically
+      
+      return () => {
+        unsubscribeWishlist();
+      };
     }
   }, [user?.uid, initializeProducts, loadWishlist, subscribeToWishlist]);
 
@@ -98,19 +113,23 @@ export default function Dashboard() {
     router.push('/dashboard/wishlist');
   };
 
-  // Mock data - replace with real data from your stores
-  const mockStats = {
-    orders: 5,
-    wishlist: wishlistItems.length || 0, // Use real wishlist count or fallback
-    reviews: 4.8,
-    customOrders: 2
+  const handleViewOrderDetails = (orderId: string) => {
+    router.push(`/dashboard/orders/${orderId}`);
   };
 
-  const mockRecentOrders = [
-    { id: 1, name: 'Handwoven Scarf', status: 'Delivered' },
-    { id: 2, name: 'Ceramic Mug Set', status: 'Delivered' },
-    { id: 3, name: 'Knitted Blanket', status: 'Delivered' }
-  ];
+  const handleViewAllOrders = () => {
+    router.push('/dashboard/orders');
+  };
+
+  // Calculate dashboard stats with real data
+  const dashboardStats = {
+    orders: orderCount,
+    wishlist: wishlistItems.length,
+    reviews: 4.8, // This could be calculated from real review data
+    customOrders: userOrders.filter(order => 
+      order.items.some(item => item.name.toLowerCase().includes('custom'))
+    ).length
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
@@ -140,7 +159,9 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-800 dark:to-pink-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Package className="w-6 h-6 text-pink-600 dark:text-pink-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.orders}</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">
+                {ordersLoading ? '...' : dashboardStats.orders}
+              </h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Orders</p>
             </CardContent>
           </Card>
@@ -150,7 +171,9 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Heart className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.wishlist}</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">
+                {wishlistLoading ? '...' : dashboardStats.wishlist}
+              </h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Wishlist</p>
             </CardContent>
           </Card>
@@ -160,7 +183,7 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-800 dark:to-rose-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Sparkles className="w-6 h-6 text-rose-600 dark:text-rose-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.reviews}</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{dashboardStats.reviews}</h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Reviews</p>
             </CardContent>
           </Card>
@@ -170,7 +193,9 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-800 dark:to-yellow-700 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Gift className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
-              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">{mockStats.customOrders}</h3>
+              <h3 className="text-2xl font-bold text-rose-900 dark:text-rose-100">
+                {ordersLoading ? '...' : dashboardStats.customOrders}
+              </h3>
               <p className="text-sm text-rose-600 dark:text-rose-400">Custom Orders</p>
             </CardContent>
           </Card>
@@ -181,7 +206,7 @@ export default function Dashboard() {
       <section className="container mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           
-          {/* Recent Orders */}
+          {/* Recent Orders - Now with real data */}
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -194,35 +219,52 @@ export default function Dashboard() {
                     <CardDescription className="text-rose-700 dark:text-rose-300">Your latest purchases</CardDescription>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="text-pink-600 hover:text-pink-700">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-pink-600 hover:text-pink-700"
+                  onClick={handleViewAllOrders}
+                >
                   View All
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockRecentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-3 rounded-lg bg-rose-50/50 dark:bg-rose-800/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-pink-200 to-purple-200 dark:from-pink-700 dark:to-purple-700 rounded-lg"></div>
-                    <div>
-                      <p className="font-medium text-rose-900 dark:text-rose-100">{order.name} #{order.id}</p>
-                      <p className="text-xs text-rose-600 dark:text-rose-400">{order.status}</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    ✓
-                  </Badge>
+              {ordersLoading ? (
+                <div className="text-center py-4 text-rose-600 dark:text-rose-400">
+                  Loading orders...
                 </div>
-              ))}
+              ) : recentOrders.length === 0 ? (
+                <div className="text-center py-4">
+                  <Package className="w-12 h-12 text-rose-400 mx-auto mb-2" />
+                  <p className="text-rose-600 dark:text-rose-400 text-sm">No orders yet</p>
+                  <Button 
+                    size="sm" 
+                    className="mt-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+                    onClick={() => router.push('/dashboard/products')}
+                  >
+                    Start Shopping
+                  </Button>
+                </div>
+              ) : (
+                recentOrders.map((order) => (
+                  <OrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onViewDetails={handleViewOrderDetails}
+                    isCompact 
+                  />
+                ))
+              )}
             </CardContent>
           </Card>
 
           {/* Wishlist Component - Pass real data */}
           <Wishlist 
-            items={wishlistItems} // Pass real wishlist items
+            items={wishlistItems}
             isCompact={true}
             showActions={false}
-            onViewItem={handleViewWishlistItem} // This will open the modal
+            onViewItem={handleViewWishlistItem}
             onAddToCart={handleAddToCart}
             onRemoveFromWishlist={handleRemoveFromWishlist}
             onViewAll={handleViewAllWishlist}

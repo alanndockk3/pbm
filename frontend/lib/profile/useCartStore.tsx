@@ -65,6 +65,12 @@ interface CartState {
   isInCart: (productId: string) => boolean;
 }
 
+// Helper function to create a valid Firestore document ID
+const createValidDocId = (productId: string): string => {
+  // Remove any characters that might cause issues
+  return productId.replace(/[^a-zA-Z0-9_-]/g, '_');
+};
+
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   loading: false,
@@ -80,7 +86,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       
       const items: CartItem[] = snapshot.docs.map(doc => ({
         id: doc.id, // Document ID is the productId
-        productId: doc.id, // Same as document ID
+        productId: doc.data().productId || doc.id, // Use stored productId or fallback to doc ID
         ...doc.data()
       } as CartItem));
       
@@ -96,52 +102,113 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   addToCart: async (userId: string, product: any, quantity = 1) => {
+    console.log('🛒 addToCart called');
+    console.log('🛒 userId:', userId);
+    console.log('🛒 product:', product);
+    console.log('🛒 quantity:', quantity);
+    
     try {
-      console.log('Adding to cart:', { userId, productId: product.id, quantity });
       set({ loading: true, error: null });
       
-      const productId = product.id;
-      const cartItemRef = doc(db, 'users', userId, 'cart', productId);
+      // Validate inputs step by step
+      if (!userId || typeof userId !== 'string') {
+        throw new Error(`Invalid user ID: ${userId}`);
+      }
+      
+      if (!product) {
+        throw new Error('Product is required');
+      }
+      
+      if (!product.id) {
+        throw new Error('Product ID is required');
+      }
+      
+      if (!product.name) {
+        throw new Error('Product name is required');
+      }
+      
+      if (typeof product.price !== 'number' || product.price < 0) {
+        throw new Error(`Invalid product price: ${product.price}`);
+      }
+      
+      const productId = String(product.id);
+      console.log('🛒 Using productId:', productId);
+      
+      // Test if we can create a document reference
+      let cartItemRef;
+      try {
+        cartItemRef = doc(db, 'users', userId, 'cart', productId);
+        console.log('🛒 Document reference created:', cartItemRef.path);
+      } catch (docError) {
+        console.error('❌ Failed to create document reference:', docError);
+        if (docError instanceof Error) {
+          throw new Error(`Invalid document path: ${docError.message}`);
+        } else {
+          throw new Error('Invalid document path: Unknown error');
+        }
+      }
       
       // Check if item already exists
+      console.log('🛒 Checking if item already exists...');
       const existingDoc = await getDoc(cartItemRef);
+      console.log('🛒 Existing document check result:', existingDoc.exists());
       
       if (existingDoc.exists()) {
         // Update existing item quantity
         const existingData = existingDoc.data() as FirestoreCartItem;
         const newQuantity = existingData.quantity + quantity;
         
+        console.log('🛒 Updating existing item quantity to:', newQuantity);
         await updateDoc(cartItemRef, {
           quantity: newQuantity,
           updatedAt: serverTimestamp(),
         });
         
-        console.log('Updated existing cart item quantity to:', newQuantity);
+        console.log('✅ Updated existing cart item quantity');
       } else {
-        // Create new cart item with productId as document ID
+        // Create new cart item
         const cartItem: FirestoreCartItem = {
           productId: productId,
-          name: product.name || '',
-          price: product.price || 0,
-          description: product.description,
-          category: product.category,
-          image: product.image, // Single image
-          inStock: product.inStock !== false, // Default to true if not specified
+          name: String(product.name),
+          price: Number(product.price),
+          description: product.description || '',
+          category: product.category || '',
+          image: product.image || product.images?.[0] || '',
+          inStock: product.inStock !== false,
           quantity: quantity,
           addedAt: serverTimestamp() as Timestamp,
           updatedAt: serverTimestamp() as Timestamp,
         };
         
+        console.log('🛒 Creating new cart item:', cartItem);
         await setDoc(cartItemRef, cartItem);
-        console.log('Created new cart item in Firebase:', cartItem);
+        console.log('✅ Created new cart item successfully');
       }
       
-      // Reload cart to get updated data (optional - real-time listener will handle this)
-      // await get().loadCart(userId);
       set({ loading: false });
+      console.log('✅ addToCart completed successfully');
       
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('❌ Error in addToCart:', error);
+      
+      // Properly handle the unknown error type
+      if (error instanceof Error) {
+        console.error('❌ Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      } else if (error && typeof error === 'object' && 'code' in error) {
+        // Handle Firebase error format
+        console.error('❌ Firebase error details:', {
+          code: (error as any).code,
+          message: (error as any).message,
+          name: (error as any).name
+        });
+      } else {
+        console.error('❌ Unknown error type:', error);
+      }
+      
       set({ 
         error: error instanceof Error ? error.message : 'Failed to add to cart',
         loading: false 
@@ -161,7 +228,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         return;
       }
       
-      const cartItemRef = doc(db, 'users', userId, 'cart', productId);
+      const validDocId = createValidDocId(productId);
+      const cartItemRef = doc(db, 'users', userId, 'cart', validDocId);
       await updateDoc(cartItemRef, {
         quantity,
         updatedAt: serverTimestamp(),
@@ -183,7 +251,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       console.log('Removing from cart:', { userId, productId });
       set({ loading: true, error: null });
       
-      const cartItemRef = doc(db, 'users', userId, 'cart', productId);
+      const validDocId = createValidDocId(productId);
+      const cartItemRef = doc(db, 'users', userId, 'cart', validDocId);
       await deleteDoc(cartItemRef);
       
       console.log('Removed item from Firebase cart:', productId);
@@ -228,7 +297,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       (snapshot) => {
         const items: CartItem[] = snapshot.docs.map(doc => ({
           id: doc.id,
-          productId: doc.id, // Document ID is the productId
+          productId: doc.data().productId || doc.id, // Use stored productId or fallback to doc ID
           ...doc.data()
         } as CartItem));
         

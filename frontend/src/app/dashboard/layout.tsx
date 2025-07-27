@@ -1,6 +1,6 @@
 // app/dashboard/layout.tsx
 'use client'
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Heart } from "lucide-react";
 import { CustomerNavigation } from '@/components/CustomerNavigation';
 import { ProtectedRoute } from '../../../lib/auth/ProtectedRoute';
@@ -18,6 +18,40 @@ export default function DashboardLayout({
   const { loadCart, subscribeToCart } = useCartStore();
   const { loadWishlist, subscribeToWishlist } = useWishlistStore();
   const { initializeProducts } = useProductStore();
+  
+  // Track sidebar state for dynamic layout
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('pbm-nav-open');
+      return stored === 'true';
+    }
+    return false;
+  });
+
+  // Listen for sidebar state changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('pbm-nav-open');
+        setIsSidebarOpen(stored === 'true');
+      }
+    };
+
+    // Listen for storage changes (when sidebar is toggled)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events from the navigation component
+    const handleSidebarToggle = (e: CustomEvent) => {
+      setIsSidebarOpen(e.detail.isOpen);
+    };
+    
+    window.addEventListener('sidebar-toggle' as any, handleSidebarToggle);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('sidebar-toggle' as any, handleSidebarToggle);
+    };
+  }, []);
 
   // Initialize all shared data when entering dashboard
   useEffect(() => {
@@ -25,7 +59,6 @@ export default function DashboardLayout({
    
     // Initialize products (available to all dashboard pages)
     initializeProducts();
-
     if (user?.uid) {
       console.log('Dashboard layout: Initializing user-specific data for:', user.uid);
      
@@ -49,8 +82,8 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute requiredRole="customer">
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b border-rose-200">
+        {/* Sticky Header - Higher z-index to stay above sidebar */}
+        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm border-b border-rose-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               {/* Left side - PBM Branding */}
@@ -63,15 +96,19 @@ export default function DashboardLayout({
                   <p className="text-xs text-rose-600">Pretties by Marg</p>
                 </div>
               </div>
-              
+             
               {/* Right side - Navigation */}
               <CustomerNavigation />
             </div>
           </div>
         </header>
        
-        {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Main Content - Only adjust layout on desktop when sidebar is open */}
+        <main className={`px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 ${
+          isSidebarOpen 
+            ? 'lg:ml-72 max-w-none' 
+            : 'max-w-7xl mx-auto'
+        }`}>
           {children}
         </main>
       </div>

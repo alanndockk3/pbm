@@ -1,32 +1,10 @@
 // lib/checkout/types.ts
+import type { OrderItem, OrderTotals, OrderAddress } from '../../types/order';
 
-// Base shipping address interface - matches your Zod schema exactly
-export interface ShippingAddress {
-  firstName: string;
-  lastName: string;
-  email?: string; // Optional since we get from user object
-  phone: string;
-  address1: string;
-  address2?: string; // Optional in schema
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string; // Required (has default in schema)
-}
+export type CheckoutStep = 1 | 2 | 3 | 4;
 
-// For the checkout session, create a type that matches what's actually optional during form filling
-export interface CheckoutShippingAddress {
-  firstName?: string;
-  lastName?: string;
-  email?: string; // Optional - will be populated from user
-  phone?: string;
-  address1?: string;
-  address2?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  country?: string; // Optional during form filling, will get default 'US'
-}
+// Use the same OrderAddress from order types
+export type CheckoutShippingAddress = Partial<OrderAddress>;
 
 export interface BillingAddress {
   sameAsShipping: boolean;
@@ -51,33 +29,22 @@ export interface ShippingOption {
 }
 
 export interface PaymentMethod {
-  type: 'card' | 'apple_pay' | 'google_pay';
-  saveForFuture?: boolean;
+  type?: 'card' | 'apple_pay' | 'google_pay';
+  cardLast4?: string;
+  brand?: string;
 }
 
-export interface OrderItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
-}
-
-export interface OrderTotals {
-  subtotal: number;
-  shipping: number;
-  tax: number;
-  total: number;
-}
+// Use OrderItem from order types instead of defining a new one
+export type CheckoutOrderItem = OrderItem;
 
 export interface CheckoutSession {
-  step: 1 | 2 | 3 | 4; // shipping, delivery, payment, review
-  shippingAddress: CheckoutShippingAddress; // Use checkout-specific type
-  billingAddress: BillingAddress; // Already has optional fields
+  step: CheckoutStep;
+  shippingAddress: CheckoutShippingAddress;
+  billingAddress: BillingAddress;
   shippingOption: ShippingOption | null;
-  paymentMethod: Partial<PaymentMethod>;
-  items: OrderItem[];
-  totals: OrderTotals;
+  paymentMethod: PaymentMethod;
+  items: CheckoutOrderItem[]; // Use the aligned type
+  totals: OrderTotals; // Use OrderTotals from order types
   paymentIntentId?: string;
   orderId?: string;
 }

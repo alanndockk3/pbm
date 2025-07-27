@@ -125,7 +125,6 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
-      <Header navigateBack={true} />
       
       <CartPageHeader 
         totalItems={totalItems}

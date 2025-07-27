@@ -191,6 +191,12 @@ export default function ProfilePage() {
       {/* Header */}
       <header className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">Profile</h1>
+              <p className="text-rose-600 dark:text-rose-400">Manage your personal information</p>
+            </div>
+          </div>
           
           {!isEditing ? (
             <Button 

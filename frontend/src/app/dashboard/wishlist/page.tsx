@@ -185,14 +185,6 @@ export default function WishlistPage() {
       <header className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex flex-col gap-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => router.push('/dashboard')}
-              className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 self-start"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
             <div>
               <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">My Wishlist</h1>
               <p className="text-rose-600 dark:text-rose-400">
@@ -298,7 +290,7 @@ export default function WishlistPage() {
         </div>
 
         {/* Bulk Actions */}
-        {filteredItems.length > 0 && (
+        {/* {filteredItems.length > 0 && (
           <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white/50 dark:bg-rose-900/50 rounded-lg">
             <Button
               variant="outline"
@@ -337,7 +329,7 @@ export default function WishlistPage() {
               </>
             )}
           </div>
-        )}
+        )} */}
       </header>
 
       {/* Wishlist Content */}

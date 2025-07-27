@@ -30,6 +30,7 @@ interface WishlistStore {
   error: string | null;
   lastUpdated: string | null;
   currentUserId: string | null; // Track current user
+  isSubscribed: boolean; // Track if real-time listener is active
   
   // Actions
   loadWishlist: (userId: string) => Promise<void>;
@@ -62,6 +63,7 @@ export const useWishlistStore = create<WishlistStore>()(
       error: null,
       lastUpdated: null,
       currentUserId: null,
+      isSubscribed: false,
 
       loadWishlist: async (userId: string) => {
         set({ isLoading: true, error: null, currentUserId: userId });
@@ -120,17 +122,33 @@ export const useWishlistStore = create<WishlistStore>()(
 
           await setDoc(wishlistItemRef, wishlistItem);
 
-          // Update local state and remove from loading
-          set(state => {
-            const newLoadingItems = new Set(state.loadingItems);
-            newLoadingItems.delete(productId);
-            
-            return { 
-              items: [productId, ...state.items], // Add to beginning (most recent first)
-              loadingItems: newLoadingItems,
-              lastUpdated: new Date().toISOString()
-            };
-          });
+          // Only update local state if real-time listener is not active
+          // The listener will handle the state update automatically
+          const { isSubscribed } = get();
+          if (!isSubscribed) {
+            set(state => {
+              const newLoadingItems = new Set(state.loadingItems);
+              newLoadingItems.delete(productId);
+              
+              // Ensure no duplicates when adding
+              const newItems = state.items.includes(productId) 
+                ? state.items 
+                : [productId, ...state.items];
+              
+              return { 
+                items: newItems,
+                loadingItems: newLoadingItems,
+                lastUpdated: new Date().toISOString()
+              };
+            });
+          } else {
+            // Just remove from loading state, listener will update items
+            set(state => {
+              const newLoadingItems = new Set(state.loadingItems);
+              newLoadingItems.delete(productId);
+              return { loadingItems: newLoadingItems };
+            });
+          }
 
           return true;
         } catch (error) {
@@ -163,17 +181,27 @@ export const useWishlistStore = create<WishlistStore>()(
           const wishlistItemRef = getWishlistItemRef(userId, productId);
           await deleteDoc(wishlistItemRef);
 
-          // Update local state and remove from loading
-          set(state => {
-            const newLoadingItems = new Set(state.loadingItems);
-            newLoadingItems.delete(productId);
-            
-            return { 
-              items: state.items.filter(id => id !== productId),
-              loadingItems: newLoadingItems,
-              lastUpdated: new Date().toISOString()
-            };
-          });
+          // Only update local state if real-time listener is not active
+          const { isSubscribed } = get();
+          if (!isSubscribed) {
+            set(state => {
+              const newLoadingItems = new Set(state.loadingItems);
+              newLoadingItems.delete(productId);
+              
+              return { 
+                items: state.items.filter(id => id !== productId),
+                loadingItems: newLoadingItems,
+                lastUpdated: new Date().toISOString()
+              };
+            });
+          } else {
+            // Just remove from loading state, listener will update items
+            set(state => {
+              const newLoadingItems = new Set(state.loadingItems);
+              newLoadingItems.delete(productId);
+              return { loadingItems: newLoadingItems };
+            });
+          }
 
           return true;
         } catch (error) {
@@ -222,6 +250,9 @@ export const useWishlistStore = create<WishlistStore>()(
         const wishlistRef = getWishlistRef(userId);
         const q = query(wishlistRef, orderBy('dateAdded', 'desc'));
         
+        // Mark as subscribed
+        set({ isSubscribed: true });
+        
         const unsubscribe = onSnapshot(q, 
           (querySnapshot) => {
             const items: string[] = [];
@@ -229,8 +260,11 @@ export const useWishlistStore = create<WishlistStore>()(
               items.push(doc.id);
             });
 
+            // Remove duplicates and ensure unique items
+            const uniqueItems = Array.from(new Set(items));
+
             set({ 
-              items, 
+              items: uniqueItems, 
               lastUpdated: new Date().toISOString(),
               error: null 
             });
@@ -242,7 +276,11 @@ export const useWishlistStore = create<WishlistStore>()(
           }
         );
 
-        return unsubscribe;
+        // Return unsubscribe function that also marks as not subscribed
+        return () => {
+          unsubscribe();
+          set({ isSubscribed: false });
+        };
       },
 
       clearWishlist: () => {
@@ -252,7 +290,8 @@ export const useWishlistStore = create<WishlistStore>()(
           lastUpdated: null,
           isLoading: false,
           loadingItems: new Set<string>(),
-          currentUserId: null
+          currentUserId: null,
+          isSubscribed: false
         });
       },
 

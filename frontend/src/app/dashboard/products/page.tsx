@@ -10,14 +10,16 @@ import {
   Package,
   ShoppingBag,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  Loader2
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
-import { useProductStore, useProducts, useCategories } from '../../../../lib/product/useProductStore';
+import { useProductStore, useProducts, useCategories, useProductLoading, useProductError } from '../../../../lib/product/useProductStore';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { useCartStore, useCartTotalItems } from '../../../../lib/profile/useCartStore';
-import Header from '@/components/Header'; // Import the enhanced Header
+import Header from '@/components/Header';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -25,10 +27,18 @@ export default function ProductsPage() {
   const { addToCart } = useCartStore();
   const cartTotalItems = useCartTotalItems();
   
-  const initializeProducts = useProductStore(state => state.initializeProducts);
-  const searchProducts = useProductStore(state => state.searchProducts);
+  // Updated store hooks
+  const { 
+    initializeProducts, 
+    refreshProducts,
+    searchProducts, 
+    getProductsByCategory 
+  } = useProductStore();
+  
   const products = useProducts();
   const categories = useCategories();
+  const loading = useProductLoading();
+  const error = useProductError();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -53,20 +63,20 @@ export default function ProductsPage() {
 
     // Apply category filter
     if (selectedCategory !== 'All') {
-      filteredProducts = filteredProducts.filter(product => product.category === selectedCategory);
+      filteredProducts = getProductsByCategory(selectedCategory);
     }
 
     // Apply sorting
     return filteredProducts.sort((a, b) => {
       switch (sortBy) {
         case 'price-low':
-          return a.price - b.price;
+          return (a.price || 0) - (b.price || 0);
         case 'price-high':
-          return b.price - a.price;
+          return (b.price || 0) - (a.price || 0);
         case 'rating':
-          return b.rating - a.rating;
+          return (b.rating || 0) - (a.rating || 0);
         case 'stock':
-          return b.quantity - a.quantity;
+          return (b.quantity || 0) - (a.quantity || 0);
         default:
           return a.name.localeCompare(b.name);
       }
@@ -76,29 +86,66 @@ export default function ProductsPage() {
   const filteredProducts = getFilteredProducts();
 
   const handleProductAction = async (product: any) => {
+    console.log('🛒 handleProductAction called with product:', product);
+    console.log('🛒 Product structure:', {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      images: product.images,
+      inStock: product.inStock,
+      category: product.category,
+      description: product.description
+    });
+    
     if (!user?.uid) {
-      console.log('User must be logged in to add to cart');
+      console.log('❌ User must be logged in to add to cart');
       router.push('/auth');
       return;
     }
 
     if (!product.inStock) {
-      console.log('Product is out of stock');
+      console.log('❌ Product is out of stock');
       return;
     }
 
     try {
       setAddingToCart(product.id);
-      await addToCart(user.uid, product, 1);
       
-      console.log('Product added to cart successfully!', product.name);
+      // Convert Stripe product to cart format
+      const cartProduct = {
+        id: product.id,
+        productId: product.id,
+        name: product.name,
+        price: product.price || 0,
+        image: product.image || product.images?.[0] || null,
+        priceId: product.defaultPrice?.id || null, // Store Stripe price ID for checkout
+        category: product.category,
+        description: product.description,
+        inStock: product.inStock,
+        quantity: 1
+      };
+      
+      console.log('🛒 Converted cart product:', cartProduct);
+      console.log('🛒 About to call addToCart with:', {
+        userId: user.uid,
+        product: cartProduct,
+        quantity: 1
+      });
+      
+      await addToCart(user.uid, cartProduct, 1);
+      
+      console.log('✅ Product added to cart successfully!', product.name);
       
       // Show success feedback
       setRecentlyAdded(product.id);
       setTimeout(() => setRecentlyAdded(null), 2000);
       
     } catch (error) {
-      console.error('Failed to add to cart:', error);
+      console.error('❌ Failed to add to cart:', error);
+      
+      // Show user-friendly error
+      alert('Failed to add item to cart. Please try again.');
     } finally {
       setAddingToCart(null);
     }
@@ -108,8 +155,83 @@ export default function ProductsPage() {
     router.push('/dashboard/cart');
   };
 
+  const handleBackToDashboard = () => {
+    router.push('/dashboard');
+  };
+
+  const handleRetryLoad = () => {
+    refreshProducts();
+  };
+
+  // Loading state
+  if (loading && products.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+        <Header navigateBack={true} />
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-pink-500 mx-auto mb-4 animate-spin" />
+            <h3 className="text-xl font-semibold text-rose-900 dark:text-rose-100 mb-2">
+              Loading Products...
+            </h3>
+            <p className="text-rose-600 dark:text-rose-400">
+              Please wait while we fetch the latest products
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && products.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+        <Header navigateBack={true} />
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-rose-900 dark:text-rose-100 mb-2">
+              Failed to Load Products
+            </h3>
+            <p className="text-rose-600 dark:text-rose-400 mb-6">
+              {error}
+            </p>
+            <div className="space-x-4">
+              <Button 
+                onClick={handleRetryLoad}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+              >
+                Try Again
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleBackToDashboard}
+                className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+      {/* Error Banner (if error but products exist) */}
+      {error && products.length > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+            <p className="text-red-700 dark:text-red-300 text-sm">
+              {error} - Showing cached products
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Page Title and Controls */}
       <section className="container mx-auto px-4 py-6">
@@ -200,6 +322,7 @@ export default function ProductsPage() {
         <div className="mb-6">
           <p className="text-rose-600 dark:text-rose-400">
             Showing {filteredProducts.length} of {products.length} products
+            {loading && <span className="ml-2 text-pink-500">(updating...)</span>}
           </p>
         </div>
       </section>
@@ -212,9 +335,37 @@ export default function ProductsPage() {
             <h3 className="text-xl font-semibold text-rose-900 dark:text-rose-100 mb-2">
               No products found
             </h3>
-            <p className="text-rose-600 dark:text-rose-400">
+            <p className="text-rose-600 dark:text-rose-400 mb-6">
               Try adjusting your search or filter criteria
             </p>
+            {searchTerm || selectedCategory !== 'All' ? (
+              <div className="space-x-4">
+                <Button 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCategory('All');
+                  }}
+                  variant="outline"
+                  className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+                >
+                  Clear Filters
+                </Button>
+                <Button 
+                  onClick={handleBackToDashboard}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Dashboard
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={handleRetryLoad}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+              >
+                Refresh Products
+              </Button>
+            )}
           </div>
         ) : (
           <div className={`grid gap-6 ${
@@ -240,14 +391,14 @@ export default function ProductsPage() {
                 
                 {/* Success indicator */}
                 {recentlyAdded === product.id && (
-                  <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-2 animate-pulse">
+                  <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-2 animate-pulse z-10">
                     <CheckCircle className="w-4 h-4" />
                   </div>
                 )}
                 
                 {/* Out of stock indicator */}
                 {!product.inStock && (
-                  <div className="absolute top-2 left-2 bg-red-500 text-white rounded-full p-2">
+                  <div className="absolute top-2 left-2 bg-red-500 text-white rounded-full p-2 z-10">
                     <AlertCircle className="w-4 h-4" />
                   </div>
                 )}

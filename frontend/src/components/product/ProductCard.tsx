@@ -14,10 +14,11 @@ import { cn } from "@/library/utils";
 import { ProductModal } from './ProductModal';
 import { useWishlistStore, useIsInWishlist, useIsItemLoading } from '../../../lib/profile/useWishListStore';
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
-import type { Product } from '../../../types/product';
+import { formatPrice } from '../../../lib/product/useProductStore';
+import type { StripeProduct } from '../../../lib/product/useProductStore';
 
 interface ProductCardProps {
-  product: Product;
+  product: StripeProduct;
   onViewClick?: () => void;
   onPurchaseClick?: () => void;
   showQuantity?: boolean;
@@ -65,7 +66,8 @@ export const ProductCard = ({
   };
 
   const handlePurchaseClick = () => {
-    if (!disabled && product.inStock) {
+    const isProductInStock = product.inStock ?? true;
+    if (!disabled && isProductInStock) {
       onPurchaseClick?.();
     }
   };
@@ -74,8 +76,25 @@ export const ProductCard = ({
     setIsModalOpen(false);
   };
 
-  const hasImage = product.image && product.image.trim() !== '';
-  const imageUrl = product.image || '';
+  // Handle image - prefer the first image from images array, then fallback to image field
+  const productImage = product.images?.[0] || product.image;
+  const hasImage = productImage && productImage.trim() !== '';
+  const imageUrl = productImage || '';
+
+  // Get safe values for all properties
+  const productPrice = product.price ?? 0;
+  const productQuantity = product.quantity ?? 0;
+  const productRating = product.rating ?? 0;
+  const productReviews = product.reviews ?? 0;
+  const productCategory = product.category ?? 'Uncategorized';
+  const isProductInStock = product.inStock ?? true;
+  const isProductFeatured = product.isFeatured ?? false;
+  const productDescription = product.description ?? '';
+
+  // Get formatted price (handles both legacy and Stripe pricing)
+  const formattedPrice = product.defaultPrice 
+    ? formatPrice(product.defaultPrice.unit_amount, product.defaultPrice.currency)
+    : `${productPrice.toFixed(2)}`;
 
   return (
     <>
@@ -100,7 +119,7 @@ export const ProductCard = ({
             </div>
           )}
           
-          {/* Overlay with action button */}
+          {/* Overlay with action button - ONLY View Details button */}
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
             <Button 
               size="sm" 
@@ -112,46 +131,29 @@ export const ProductCard = ({
               }}
             >
               <Eye className="w-4 h-4 mr-1" />
-              Quick View
+              View Details
             </Button>
           </div>
 
           {/* Stock status badges */}
-          {!product.inStock && (
+          {!isProductInStock && (
             <Badge className="absolute top-2 left-2 bg-red-500 text-white">
               Out of Stock
             </Badge>
           )}
           
-          {product.quantity <= 5 && product.inStock && (
+          {productQuantity <= 5 && isProductInStock && productQuantity > 0 && (
             <Badge className="absolute top-2 left-2 bg-orange-500 text-white">
               Low Stock
             </Badge>
           )}
 
           {/* Featured badge */}
-          {product.isFeatured && (
+          {isProductFeatured && (
             <Badge className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white">
               Featured
             </Badge>
           )}
-
-          {/* Heart button */}
-          <Button
-            size="sm"
-            variant="secondary"
-            className={cn(
-              "absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
-              isInWishlist 
-                ? "bg-red-500 hover:bg-red-600 text-white" 
-                : "bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700",
-              isWishlistLoading && "opacity-50 cursor-not-allowed"
-            )}
-            onClick={handleHeartClick}
-            disabled={isWishlistLoading}
-          >
-            <Heart className={cn("w-4 h-4", isInWishlist && "fill-current")} />
-          </Button>
         </div>
         
         {/* Product Info Section */}
@@ -159,7 +161,7 @@ export const ProductCard = ({
           {/* Category Badge */}
           <div className="mb-2">
             <Badge variant="secondary" className="text-xs bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
-              {product.category}
+              {productCategory}
             </Badge>
           </div>
           
@@ -170,7 +172,7 @@ export const ProductCard = ({
           
           {/* Product Description */}
           <p className="text-rose-700 dark:text-rose-300 text-sm mb-3 line-clamp-2">
-            {product.description}
+            {productDescription || 'No description available'}
           </p>
 
           {/* Rating */}
@@ -181,7 +183,7 @@ export const ProductCard = ({
                   key={i}
                   className={cn(
                     "w-3 h-3",
-                    i < Math.floor(product.rating)
+                    i < Math.floor(productRating)
                       ? "text-yellow-400 fill-current"
                       : "text-gray-300"
                   )}
@@ -189,65 +191,66 @@ export const ProductCard = ({
               ))}
             </div>
             <span className="text-xs text-rose-600 dark:text-rose-400">
-              ({product.reviews} reviews)
+              ({productReviews} reviews)
             </span>
           </div>
 
           {/* Price and Quantity */}
           <div className="flex items-center justify-between mb-4">
             <span className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-              ${product.price.toFixed(2)}
+              {formattedPrice}
             </span>
             {showQuantity && (
               <span className="text-sm text-rose-600 dark:text-rose-400">
-                Qty: {product.quantity}
+                Qty: {productQuantity}
               </span>
             )}
           </div>
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            {/* Primary Action Button */}
-            <Button
-              className={cn(
-                "w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white",
-                (!product.inStock || disabled) && "opacity-50 cursor-not-allowed"
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePurchaseClick();
-              }}
-              disabled={!product.inStock || disabled}
-            >
-              {!product.inStock ? (
-                'Out of Stock'
-              ) : (
-                <>
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  {purchaseButtonText}
-                </>
-              )}
-            </Button>
+            {/* Primary Action Button Row */}
+            <div className="flex gap-2">
+              <Button
+                className={cn(
+                  "flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white",
+                  (!isProductInStock || disabled) && "opacity-50 cursor-not-allowed"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePurchaseClick();
+                }}
+                disabled={!isProductInStock || disabled}
+              >
+                {!isProductInStock ? (
+                  'Out of Stock'
+                ) : (
+                  <>
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {purchaseButtonText}
+                  </>
+                )}
+              </Button>
 
-            {/* Wishlist Button */}
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full border-rose-300 hover:bg-rose-50 dark:border-rose-700 dark:hover:bg-rose-900",
-                isInWishlist 
-                  ? "text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20" 
-                  : "text-rose-700 dark:text-rose-300",
-                isWishlistLoading && "opacity-50 cursor-not-allowed"
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleHeartClick(e);
-              }}
-              disabled={isWishlistLoading}
-            >
-              <Heart className={cn("w-4 h-4 mr-2", isInWishlist && "fill-current")} />
-              {isWishlistLoading ? 'Updating...' : (isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist')}
-            </Button>
+              {/* Wishlist Heart Button - Next to Add to Cart */}
+              <Button
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleHeartClick(e);
+                }}
+                disabled={isWishlistLoading}
+                className={cn(
+                  "border-rose-300 hover:bg-rose-50 dark:border-rose-700 dark:hover:bg-rose-900",
+                  isInWishlist 
+                    ? "text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20" 
+                    : "text-rose-700 dark:text-rose-300",
+                  isWishlistLoading && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <Heart className={cn("w-4 h-4", isInWishlist && "fill-current")} />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -263,7 +266,6 @@ export const ProductCard = ({
         purchaseButtonText={purchaseButtonText}
         disabled={disabled}
         isInWishlist={isInWishlist}
-        //isWishlistLoading={isWishlistLoading}
       />
     </>
   );
