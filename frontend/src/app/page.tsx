@@ -126,7 +126,7 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
+      <section className="container mx-auto px-4 py-40 text-center">
         <Badge variant="secondary" className="mb-6 px-4 py-2 bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
           <Sparkles className="w-4 h-4 mr-2" />
           Handcrafted with Love
@@ -167,7 +167,7 @@ export default function Home() {
         <div className="flex flex-wrap justify-center items-center gap-8 text-rose-600 dark:text-rose-400">
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-500" />
-            <span>500+ Happy Customers</span>
+            <span>100+ Happy Customers</span>
           </div>
           <div className="flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-500" />
