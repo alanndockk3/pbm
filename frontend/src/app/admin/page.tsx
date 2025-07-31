@@ -1,496 +1,334 @@
+// app/admin/page.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
+  Settings, 
+  Package, 
+  ShoppingCart, 
+  Users, 
+  TrendingUp,
   Star,
-  Package,
-  Search,
-  Filter,
-  Grid3X3,
-  List,
-  Heart,
-  ArrowLeft,
-  Save,
-  X,
-  Upload,
-  Settings,
-  AlertCircle,
-  CheckCircle
+  Eye,
+  Edit,
+  Plus,
+  BarChart3,
+  FileText,
+  Settings2,
+  LogOut
 } from "lucide-react";
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
-import { useAdminStore } from '../../../lib/admin/useAdminStore';
-import { AdminProductForm } from '@/components/admin/AdminProductForm';
-import { ProductCard } from '@/components/product/ProductCard';
-import type { Product } from '../../../types/product';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy,
-  onSnapshot,
-  doc,
-  updateDoc
-} from 'firebase/firestore';
-import { db } from '../../../client/firebaseConfig';
+import { useProductStore, useProducts, useProductLoading } from '../../../lib/product/useProductStore';
 
-export default function AdminPage() {
+export default function AdminDashboard() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuthStore();
-  const { 
-    loading: adminLoading, 
-    error: adminError, 
-    deleteProduct: deleteProductFromFirebase,
-    clearError 
-  } = useAdminStore();
+  const { user, loading: authLoading, logout } = useAuthStore();
   
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState('name');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Product store for stats
+  const { initializeProducts } = useProductStore();
+  const products = useProducts();
+  const productLoading = useProductLoading();
 
-  // Load products from Firestore
+  // Initialize products for stats
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setLoading(true);
-        const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const productsData: Product[] = [];
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            
-            productsData.push({
-              id: doc.id, 
-              name: data.name,
-              price: data.price,
-              quantity: data.quantity,
-              image: data.image,
-              category: data.category,
-              rating: data.rating,
-              reviews: data.reviews,
-              inStock: data.inStock,
-              description: data.description,
-              isFeatured: data.isFeatured || false,
-              createdAt: data.createdAt,
-              updatedAt: data.updatedAt,
-            } as Product);
-          });
-          
-          console.log('Loaded products:', productsData.length);
-          console.log('Sample product IDs:', productsData.slice(0, 3).map(p => ({ id: p.id, type: typeof p.id })));
-          
-          setProducts(productsData);
-          setLoading(false);
-        });
-  
-        return unsubscribe;
-      } catch (error) {
-        console.error('Error loading products:', error);
-        setLoading(false);
-      }
-    };
-  
-    loadProducts();
-  }, []);
+    initializeProducts();
+  }, [initializeProducts]);
 
-  
+  // Auth check
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
       router.push('/');
     }
   }, [user, authLoading, router]);
 
-  
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  
-  const categories = [...new Set(products.map(p => p.category))];
-
-  
-  const getFilteredProducts = () => {
-    if (!products || products.length === 0) {
-      return [];
-    }
-    
-    let filteredProducts = products;
-
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filteredProducts = products.filter(product => 
-        product.name.toLowerCase().includes(term) ||
-        product.description.toLowerCase().includes(term) ||
-        product.category.toLowerCase().includes(term)
-      );
-    }
-
-    if (selectedCategory !== 'All') {
-      filteredProducts = filteredProducts.filter(product => product.category === selectedCategory);
-    }
-
-    return filteredProducts.sort((a, b) => {
-      switch (sortBy) {
-        case 'price-low':
-          return a.price - b.price;
-        case 'price-high':
-          return b.price - a.price;
-        case 'rating':
-          return b.rating - a.rating;
-        case 'stock':
-          return b.quantity - a.quantity;
-        case 'featured':
-          return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
-        default:
-          return a.name.localeCompare(b.name);
-      }
-    });
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/');
   };
 
-  const filteredProducts = getFilteredProducts();
-
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteProduct = async (product: Product) => {
-    if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-      const productWithFirestoreId = product as Product & { firestoreId?: string };
-      const firestoreId = productWithFirestoreId.firestoreId || product.id.toString();
-      
-      const success = await deleteProductFromFirebase(firestoreId, product.image);
-      if (success) {
-        setSuccessMessage('Product deleted successfully!');
-      }
-    }
-  };
-
-  const handleToggleFeatured = async (product: Product) => {
-    try {
-      const productWithFirestoreId = product as Product & { firestoreId?: string };
-      const firestoreId = productWithFirestoreId.firestoreId || product.id.toString();
-      
-      const docRef = doc(db, 'products', firestoreId);
-      await updateDoc(docRef, {
-        isFeatured: !product.isFeatured,
-        updatedAt: new Date()
-      });
-      
-      setSuccessMessage(`Product ${product.isFeatured ? 'removed from' : 'added to'} featured!`);
-    } catch (error) {
-      console.error('Error toggling featured status:', error);
-    }
-  };
-
-  const handleProductSuccess = (message: string) => {
-    setSuccessMessage(message);
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setEditingProduct(null);
-  };
-
-  if (authLoading || loading) {
+  // Loading state
+  if (authLoading || productLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Settings className="w-8 h-8 text-white" />
           </div>
-          <p className="text-rose-700 dark:text-rose-300">Loading Admin Panel...</p>
+          <p className="text-rose-700 dark:text-rose-300">Loading Admin Dashboard...</p>
         </div>
       </div>
     );
   }
 
+  // Auth guard
   if (!user || user.role !== 'admin') {
     return null;
   }
 
+  // Calculate stats
+  const totalProducts = products.length;
+  const activeProducts = products.filter(p => p.active !== false).length;
+  const featuredProducts = products.filter(p => p.isFeatured).length;
+  const outOfStockProducts = products.filter(p => !p.inStock).length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+    <>
       {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            {/* <Button 
-              variant="ghost" 
-              onClick={() => router.push('/')}
-              className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
-            </Button> */}
+            <div className="w-12 h-12 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
+              <Settings className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">Admin Dashboard</h1>
-              <p className="text-rose-600 dark:text-rose-400">Manage your handmade products</p>
+              <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">
+                Admin Dashboard
+              </h1>
+              <p className="text-rose-600 dark:text-rose-400">
+                Welcome back, {user.displayName || 'Admin'}
+              </p>
             </div>
           </div>
-          
-          <Button 
-            onClick={() => setShowAddModal(true)}
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
-            disabled={adminLoading}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Product
-          </Button>
-        </div>
-
-        {/* Success Message */}
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-center">
-              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-              <p className="text-green-800 dark:text-green-200">{successMessage}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {adminError && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-                <p className="text-red-800 dark:text-red-200">{adminError}</p>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={clearError}
-                className="text-red-600 hover:text-red-800"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-rose-600 dark:text-rose-400">Total Products</p>
-                  <p className="text-2xl font-bold text-rose-900 dark:text-rose-100">{products?.length || 0}</p>
-                </div>
-                <Package className="w-8 h-8 text-pink-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-rose-600 dark:text-rose-400">Featured</p>
-                  <p className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-                    {products?.filter(p => p.isFeatured).length || 0}
-                  </p>
-                </div>
-                <Star className="w-8 h-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-rose-600 dark:text-rose-400">In Stock</p>
-                  <p className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-                    {products?.filter(p => p.inStock).length || 0}
-                  </p>
-                </div>
-                <Package className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-rose-600 dark:text-rose-400">Categories</p>
-                  <p className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-                    {categories?.length || 0}
-                  </p>
-                </div>
-                <Filter className="w-8 h-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
-
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-3 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
-          >
-            <option value="All">All Categories</option>
-            {categories?.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="px-4 py-3 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
-          >
-            <option value="name">Sort by Name</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="rating">Highest Rated</option>
-            <option value="stock">Stock Level</option>
-            <option value="featured">Featured First</option>
-          </select>
-
-          <div className="flex items-center gap-2 bg-white/50 dark:bg-rose-900/50 rounded-lg p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className={viewMode === 'grid' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : ''}
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className={viewMode === 'list' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : ''}
-            >
-              <List className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+              Administrator
+            </Badge>
           </div>
         </div>
 
-        <div className="mb-6">
-          <p className="text-rose-600 dark:text-rose-400">
-            Showing {filteredProducts?.length || 0} of {products?.length || 0} products
-          </p>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Total Products</p>
+                  <p className="text-3xl font-bold text-rose-900 dark:text-rose-100">{totalProducts}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                  <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Active Products</p>
+                  <p className="text-3xl font-bold text-rose-900 dark:text-rose-100">{activeProducts}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Featured</p>
+                  <p className="text-3xl font-bold text-rose-900 dark:text-rose-100">{featuredProducts}</p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                  <Star className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Out of Stock</p>
+                  <p className="text-3xl font-bold text-rose-900 dark:text-rose-100">{outOfStockProducts}</p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                  <ShoppingCart className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </header>
 
-      {/* Products Grid */}
-      <section className="container mx-auto px-4 pb-12">
-        {!filteredProducts || filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="w-16 h-16 text-rose-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-rose-900 dark:text-rose-100 mb-2">
-              {!products || products.length === 0 ? 'No products available' : 'No products found'}
-            </h3>
-            <p className="text-rose-600 dark:text-rose-400">
-              {!products || products.length === 0 
-                ? 'Add your first product to get started.' 
-                : 'Try adjusting your search or filter criteria, or add a new product.'
-              }
-            </p>
-          </div>
-        ) : (
-          <div className={`grid gap-6 ${
-            viewMode === 'grid' 
-              ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-              : 'grid-cols-1'
-          }`}>
-            {filteredProducts.map(product => (
-              <div key={product.id} className="relative group">
-                <ProductCard 
-                  product={product}
-                  showQuantity={true}
-                  purchaseButtonText="Manage Product"
-                  onPurchaseClick={() => handleEditProduct(product)}
-                />
-                
-                {/* Admin Action Buttons */}
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-white/90 hover:bg-white shadow-lg"
-                    onClick={() => handleToggleFeatured(product)}
-                    disabled={adminLoading}
-                  >
-                    <Star className={`w-3 h-3 ${product.isFeatured ? 'text-yellow-500 fill-current' : 'text-gray-400'}`} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-white/90 hover:bg-white shadow-lg"
-                    onClick={() => handleEditProduct(product)}
-                    disabled={adminLoading}
-                  >
-                    <Edit className="w-3 h-3 text-blue-500" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-white/90 hover:bg-white shadow-lg"
-                    onClick={() => handleDeleteProduct(product)}
-                    disabled={adminLoading}
-                  >
-                    <Trash2 className="w-3 h-3 text-red-500" />
-                  </Button>
+      {/* Main Content */}
+      <section className="mb-12">
+        <div className="grid lg:grid-cols-2 gap-8">
+          
+          {/* Quick Actions */}
+          <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                <Settings2 className="w-5 h-5" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription className="text-rose-600 dark:text-rose-400">
+                Common administrative tasks
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => router.push('/admin/products')}
+                className="w-full justify-start bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+              >
+                <Package className="w-4 h-4 mr-3" />
+                Manage Products
+              </Button>
+              <Button
+                onClick={() => router.push('/admin/products?action=add')}
+                variant="outline"
+                className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+              >
+                <Plus className="w-4 h-4 mr-3" />
+                Add New Product
+              </Button>
+              <Button
+                onClick={() => router.push('/admin/orders')}
+                variant="outline"
+                className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+              >
+                <ShoppingCart className="w-4 h-4 mr-3" />
+                View Orders
+              </Button>
+              <Button
+                onClick={() => router.push('/admin/analytics')}
+                variant="outline"
+                className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+              >
+                <BarChart3 className="w-4 h-4 mr-3" />
+                Analytics
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity / System Status */}
+          <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                System Overview
+              </CardTitle>
+              <CardDescription className="text-rose-600 dark:text-rose-400">
+                Current system status and alerts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                    All systems operational
+                  </span>
                 </div>
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  Healthy
+                </Badge>
               </div>
-            ))}
-          </div>
-        )}
+
+              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    Database connected
+                  </span>
+                </div>
+                <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  Active
+                </Badge>
+              </div>
+
+              {outOfStockProducts > 0 && (
+                <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                      {outOfStockProducts} products out of stock
+                    </span>
+                  </div>
+                  <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                    Attention
+                  </Badge>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => router.push('/admin/products?filter=outOfStock')}
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Review Out of Stock Items
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Navigation Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <Card 
+            className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer hover:shadow-xl transition-shadow duration-300"
+            onClick={() => router.push('/admin/products')}
+          >
+            <CardHeader className="text-center pb-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-800 dark:to-pink-700 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Package className="w-8 h-8 text-pink-600 dark:text-pink-400" />
+              </div>
+              <CardTitle className="text-lg text-rose-900 dark:text-rose-100">Product Management</CardTitle>
+              <CardDescription className="text-rose-600 dark:text-rose-400">
+                Add, edit, and manage your product catalog
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card 
+            className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer hover:shadow-xl transition-shadow duration-300 opacity-50"
+            onClick={() => {
+              // Future feature
+              alert('Orders management coming soon!');
+            }}
+          >
+            <CardHeader className="text-center pb-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-700 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <ShoppingCart className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              </div>
+              <CardTitle className="text-lg text-rose-900 dark:text-rose-100">Order Management</CardTitle>
+              <CardDescription className="text-rose-600 dark:text-rose-400">
+                Process and track customer orders
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card 
+            className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer hover:shadow-xl transition-shadow duration-300 opacity-50"
+            onClick={() => {
+              // Future feature
+              alert('Analytics coming soon!');
+            }}
+          >
+            <CardHeader className="text-center pb-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-800 dark:to-green-700 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <BarChart3 className="w-8 h-8 text-green-600 dark:text-green-400" />
+              </div>
+              <CardTitle className="text-lg text-rose-900 dark:text-rose-100">Analytics & Reports</CardTitle>
+              <CardDescription className="text-rose-600 dark:text-rose-400">
+                View sales data and performance metrics
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
       </section>
-
-      {/* Add Product Modal */}
-      <AdminProductForm
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSuccess={() => handleProductSuccess('Product added successfully!')}
-        mode="add"
-      />
-
-      {/* Edit Product Modal */}
-      <AdminProductForm
-        product={editingProduct}
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingProduct(null);
-        }}
-        onSuccess={() => handleProductSuccess('Product updated successfully!')}
-        mode="edit"
-      />
-    </div>
+    </>
   );
 }

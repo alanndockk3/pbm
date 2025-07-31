@@ -51,18 +51,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const userData = userDoc.data();
         return userData.role || 'customer';
       }
-      return 'customer'; // Default role if no document found
+      return 'customer';
     } catch (error) {
       console.error('Error fetching user role:', error);
-      return 'customer'; // Default role on error
+      return 'customer';
     }
   },
 
   initializeAuth: () => {
-    // Listen for auth state changes
     onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Fetch additional user data from Firestore
         try {
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
@@ -81,7 +79,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               }
             } as ExtendedUser;
           } else {
-            // If no Firestore document exists, set default role
             extendedUser.role = 'customer';
           }
           
@@ -92,7 +89,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
         } catch (error) {
           console.error('Error fetching user data:', error);
-          // Set user with default role if Firestore fetch fails
           const extendedUser: ExtendedUser = {
             ...user,
             role: 'customer'
@@ -118,16 +114,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
-      // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Update the user's display name
       await updateProfile(user, {
         displayName: fullName,
       });
 
-      // Save user information to Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userData = {
         uid: user.uid,

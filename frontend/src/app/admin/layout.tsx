@@ -1,5 +1,7 @@
+// app/admin/layout.tsx
 'use client'
 
+import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '../../../lib/auth/ProtectedRoute';
 import { AdminNavigation } from '@/components/AdminNavigation';
 
@@ -8,30 +10,54 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Track sidebar state for dynamic layout
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('pbm-admin-nav-open');
+      return stored === 'true';
+    }
+    return false;
+  });
+
+  // Listen for sidebar state changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('pbm-admin-nav-open');
+        setIsSidebarOpen(stored === 'true');
+      }
+    };
+
+    // Listen for storage changes (when sidebar is toggled)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events from the navigation component
+    const handleSidebarToggle = (e: CustomEvent) => {
+      setIsSidebarOpen(e.detail.isOpen);
+    };
+    
+    window.addEventListener('admin-sidebar-toggle' as any, handleSidebarToggle);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('admin-sidebar-toggle' as any, handleSidebarToggle);
+    };
+  }, []);
+
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-        <div className="flex">
-          {/* Admin Sidebar */}
-          <aside className="w-64 bg-white shadow-lg">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">PBM</span>
-                </div>
-                <h2 className="text-xl font-bold text-rose-800">Admin Panel</h2>
-              </div>
-              <AdminNavigation />
-            </div>
-          </aside>
-          
-          {/* Main Content */}
-          <main className="flex-1 p-6">
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
-          </main>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+        {/* Admin Navigation - collapsible sidebar */}
+        <AdminNavigation />
+        
+        {/* Main Content - Only adjust layout on desktop when sidebar is open */}
+        <main className={`px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 ${
+          isSidebarOpen 
+            ? 'lg:ml-72 max-w-none' 
+            : 'max-w-7xl mx-auto'
+        }`}>
+          {children}
+        </main>
       </div>
     </ProtectedRoute>
   );

@@ -1,458 +1,516 @@
 // components/admin/AdminProductForm.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Save, X, AlertCircle, CheckCircle } from "lucide-react";
-import { useAdminStore } from '../../../lib/admin/useAdminStore';
-import { ImageUpload } from './ImageUpload';
-import type { Product } from '../../../types/product';
+import { Switch } from "@/components/ui/switch";
+import { X, Save, Upload, AlertCircle, Image as ImageIcon, Trash2 } from "lucide-react";
+import { useStripeAdminStore } from '../../../lib/admin/useStripeAdminStore';
+import type { StripeProduct } from '../../../lib/product/useProductStore';
 
 interface AdminProductFormProps {
-  product?: Product | null;
+  product?: StripeProduct | null;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (productId: string) => void;
+  onSuccess: () => void;
   mode: 'add' | 'edit';
 }
 
-const CATEGORIES = [
-  'Accessories',
-  'Crochet',
-  'Home & Kitchen',
-  'Home Decor',
-  'Bath & Body',
-  'Storage',
-  'Baby & Kids',
-  'Stationery',
-];
+interface FormData {
+  category: string;
+  quantity: string;
+  rating: string;
+  reviews: string;
+  inStock: boolean;
+  isFeatured: boolean;
+  images: string[];
+}
 
-export const AdminProductForm = ({
+export function AdminProductForm({
   product,
   isOpen,
   onClose,
   onSuccess,
   mode
-}: AdminProductFormProps) => {
+}: AdminProductFormProps) {
   const { 
     loading, 
-    uploading, 
     error, 
-    addProduct, 
-    updateProduct, 
+    updateProductMetadata,
     clearError 
-  } = useAdminStore();
+  } = useStripeAdminStore();
 
-  const [formData, setFormData] = useState({
-    name: '',
-    price: '',
-    quantity: '',
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  const [formData, setFormData] = useState<FormData>({
     category: '',
-    description: '',
-    rating: '5.0',
+    quantity: '0',
+    rating: '0',
     reviews: '0',
+    inStock: true,
     isFeatured: false,
+    images: [],
   });
-
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   // Initialize form data when product changes
   useEffect(() => {
-    if (product && mode === 'edit') {
+    if (product) {
+      const metadata = product.metadata || {};
       setFormData({
-        name: product.name,
-        price: product.price.toString(),
-        quantity: product.quantity.toString(),
-        category: product.category,
-        description: product.description,
-        rating: product.rating.toString(),
-        reviews: product.reviews.toString(),
-        isFeatured: product.isFeatured || false,
+        category: metadata.category || product.category || '',
+        quantity: metadata.quantity || product.quantity?.toString() || '0',
+        rating: metadata.rating || product.rating?.toString() || '0',
+        reviews: metadata.reviews || product.reviews?.toString() || '0',
+        inStock: metadata.inStock === 'true' || product.inStock !== false,
+        isFeatured: metadata.isFeatured === 'true' || product.isFeatured || false,
+        images: product.images || [],
       });
     } else {
+      // Reset form for add mode
       setFormData({
-        name: '',
-        price: '',
-        quantity: '',
         category: '',
-        description: '',
-        rating: '5.0',
+        quantity: '0',
+        rating: '0',
         reviews: '0',
+        inStock: true,
         isFeatured: false,
+        images: [],
       });
     }
-    setSelectedImage(null);
-  }, [product, mode]);
+  }, [product]);
 
-  // Clear error when form opens
-  useEffect(() => {
-    if (isOpen) {
-      clearError();
-      setShowSuccess(false);
-    }
-  }, [isOpen, clearError]);
+  const handleInputChange = (field: keyof FormData, value: string | boolean | string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value, type } = e.target;
-    
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+  // File upload handler
+  const handleFileUpload = async (files: FileList) => {
+    if (!files.length) return;
+
+    setUploading(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`${file.name} is not an image file`);
+        }
+
+        // Validate file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error(`${file.name} is too large. Maximum size is 5MB`);
+        }
+
+        // Convert to base64 for preview (in a real app, you'd upload to a storage service)
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+          reader.readAsDataURL(file);
+        });
+      });
+
+      const uploadedImages = await Promise.all(uploadPromises);
+      
+      // Add new images to existing ones
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...uploadedImages]
+      }));
+
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      // In a real app, you'd show this error to the user
+      alert(error instanceof Error ? error.message : 'Failed to upload images');
+    } finally {
+      setUploading(false);
     }
   };
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      return 'Product name is required';
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      handleFileUpload(e.target.files);
     }
-    if (!formData.category) {
-      return 'Category is required';
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    
+    if (e.dataTransfer.files) {
+      handleFileUpload(e.dataTransfer.files);
     }
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      return 'Valid price is required';
+  };
+
+  // Remove image
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Add image URL manually
+  const addImageUrl = () => {
+    const url = prompt('Enter image URL:');
+    if (url && url.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, url.trim()]
+      }));
     }
-    if (parseInt(formData.quantity) < 0) {
-      return 'Quantity cannot be negative';
-    }
-    const rating = parseFloat(formData.rating);
-    if (rating < 0 || rating > 5) {
-      return 'Rating must be between 0 and 5';
-    }
-    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validationError = validateForm();
-    if (validationError) {
-      alert(validationError);
+    if (!product) {
+      // For add mode, we would need to integrate with Stripe API
+      // This is a simplified version that only handles editing
+      console.warn('Add mode not implemented yet - requires Stripe API integration');
       return;
     }
 
-    const productData = {
-      name: formData.name.trim(),
-      price: parseFloat(formData.price),
-      quantity: parseInt(formData.quantity) || 0,
+    // Prepare metadata update
+    const updatedMetadata = {
+      ...product.metadata,
       category: formData.category,
-      description: formData.description.trim(),
-      rating: parseFloat(formData.rating),
-      reviews: parseInt(formData.reviews) || 0,
-      isFeatured: formData.isFeatured,
-      inStock: (parseInt(formData.quantity) || 0) > 0,
-      image: mode === 'edit' ? product?.image || null : null,
+      quantity: formData.quantity,
+      rating: formData.rating,
+      reviews: formData.reviews,
+      inStock: formData.inStock.toString(),
+      isFeatured: formData.isFeatured.toString(),
     };
 
-    try {
-      let result: string | boolean | null = null;
-      
-      if (mode === 'add') {
-        result = await addProduct(productData, selectedImage || undefined);
-      } else if (product) {
-        result = await updateProduct(product.id.toString(), productData, selectedImage || undefined);
-      }
-
-      if (result) {
-        setShowSuccess(true);
-        setTimeout(() => {
-          const productId = typeof result === 'string' ? result : product!.id.toString();
-          onSuccess?.(productId);
-          onClose();
-        }, 1500);
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
+    // Note: Images would typically be handled through Stripe's product.images field
+    // This is a simplified example - in a real app, you'd update the product images
+    // through the Stripe API directly
+    
+    const success = await updateProductMetadata(product.id, updatedMetadata);
+    
+    if (success) {
+      onSuccess();
     }
+  };
+
+  const handleClose = () => {
+    clearError();
+    onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-rose-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
-        {/* Header */}
-        <div className="p-6 border-b border-rose-200 dark:border-rose-700 sticky top-0 bg-white dark:bg-rose-900 z-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-              {mode === 'add' ? 'Add New Product' : 'Edit Product'}
-            </h2>
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-rose-900">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-xl text-rose-900 dark:text-rose-100">
+            {mode === 'add' ? 'Add Product' : 'Edit Product'}
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClose}
+            className="text-rose-600 hover:text-rose-800"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
 
-        {/* Success Message */}
-        {showSuccess && (
-          <div className="p-4 m-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-center">
-              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-              <p className="text-green-800 dark:text-green-200">
-                Product {mode === 'add' ? 'added' : 'updated'} successfully!
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="p-4 m-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-              <p className="text-red-800 dark:text-red-200">{error}</p>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Product Details */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
-                    Product Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Product Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                      Product Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50"
-                      placeholder="Enter product name"
-                      required
-                    />
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                      Category *
-                    </label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50"
-                      required
-                    >
-                      <option value="">Select Category</option>
-                      {CATEGORIES.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Price and Quantity */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                        Price ($) *
-                      </label>
-                      <input
-                        type="number"
-                        name="price"
-                        value={formData.price}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                        step="0.01"
-                        min="0"
-                        className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50"
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                        min="0"
-                        className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Rating and Reviews */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                        Rating (0-5)
-                      </label>
-                      <input
-                        type="number"
-                        name="rating"
-                        value={formData.rating}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                        min="0"
-                        max="5"
-                        step="0.1"
-                        className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                        Reviews Count
-                      </label>
-                      <input
-                        type="number"
-                        name="reviews"
-                        value={formData.reviews}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                        min="0"
-                        className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 disabled:opacity-50 resize-none"
-                      placeholder="Enter product description"
-                    />
-                  </div>
-
-                  {/* Featured Checkbox */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="featured"
-                      name="isFeatured"
-                      checked={formData.isFeatured}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className="rounded border-rose-300 disabled:opacity-50"
-                    />
-                    <label htmlFor="featured" className="text-sm font-medium text-rose-900 dark:text-rose-100">
-                      Mark as Featured Product
-                    </label>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right Column - Image Upload */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
-                    Product Image
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ImageUpload
-                    currentImage={mode === 'edit' ? product?.image : null}
-                    onImageSelect={setSelectedImage}
-                    uploading={uploading}
-                    disabled={loading}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Stock Status Preview */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
-                    Status Preview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-rose-700 dark:text-rose-300">Stock Status:</span>
-                    <Badge 
-                      variant={parseInt(formData.quantity) > 0 ? "default" : "destructive"}
-                      className={parseInt(formData.quantity) > 0 ? "bg-green-500" : ""}
-                    >
-                      {parseInt(formData.quantity) > 0 ? 'In Stock' : 'Out of Stock'}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-rose-700 dark:text-rose-300">Featured:</span>
-                    <Badge variant={formData.isFeatured ? "default" : "secondary"}>
-                      {formData.isFeatured ? 'Yes' : 'No'}
-                    </Badge>
-                  </div>
-
-                  {parseInt(formData.quantity) > 0 && parseInt(formData.quantity) <= 5 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-rose-700 dark:text-rose-300">Warning:</span>
-                      <Badge variant="destructive" className="bg-orange-500">
-                        Low Stock
-                      </Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="p-6 border-t border-rose-200 dark:border-rose-700 flex justify-end gap-3 bg-gray-50 dark:bg-rose-900/20">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose}
-              disabled={loading || uploading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit"
-              disabled={loading || uploading || showSuccess}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white min-w-[120px]"
-            >
-              {loading || uploading ? (
-                <div className="flex items-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  {uploading ? 'Uploading...' : 'Saving...'}
-                </div>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  {mode === 'add' ? 'Add Product' : 'Update Product'}
-                </>
+        <CardContent className="space-y-6">
+          {/* Product Info (for edit mode) */}
+          {mode === 'edit' && product && (
+            <div className="bg-rose-50 dark:bg-rose-900/20 rounded-lg p-4">
+              <h3 className="font-semibold text-rose-900 dark:text-rose-100 mb-2">
+                {product.name}
+              </h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <Badge variant="secondary">ID: {product.id.slice(0, 12)}...</Badge>
+                <Badge variant={product.active ? "default" : "secondary"}>
+                  {product.active ? 'Active' : 'Inactive'}
+                </Badge>
+                {product.defaultPrice && (
+                  <Badge variant="outline">
+                    ${(product.defaultPrice.unit_amount / 100).toFixed(2)}
+                  </Badge>
+                )}
+              </div>
+              {product.description && (
+                <p className="text-sm text-rose-600 dark:text-rose-400">
+                  {product.description}
+                </p>
               )}
-            </Button>
-          </div>
-        </form>
-      </div>
+            </div>
+          )}
+
+          {/* Add mode notice */}
+          {mode === 'add' && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-blue-600 mr-2" />
+                <div>
+                  <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                    Stripe Integration Required
+                  </h4>
+                  <p className="text-blue-600 dark:text-blue-300 text-sm mt-1">
+                    Adding new products requires Stripe API integration. Currently only editing existing products is supported.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                <p className="text-red-800 dark:text-red-200">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Images Section */}
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-rose-700 dark:text-rose-300">
+                Product Images
+              </label>
+              
+              {/* Image Upload Area */}
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
+                  dragOver
+                    ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20'
+                    : 'border-rose-300 dark:border-rose-700 hover:border-pink-400'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="text-center">
+                  <ImageIcon className="w-12 h-12 text-rose-400 mx-auto mb-4" />
+                  <div className="space-y-2">
+                    <p className="text-rose-700 dark:text-rose-300">
+                      Drag and drop images here, or click to select
+                    </p>
+                    <p className="text-sm text-rose-500 dark:text-rose-500">
+                      PNG, JPG, GIF up to 5MB each
+                    </p>
+                  </div>
+                  <div className="flex gap-2 justify-center mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploading ? 'Uploading...' : 'Choose Files'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addImageUrl}
+                      className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                    >
+                      Add URL
+                    </Button>
+                  </div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Image Preview Grid */}
+              {formData.images.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {formData.images.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                        <img
+                          src={image}
+                          alt={`Product image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                      {index === 0 && (
+                        <Badge className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs">
+                          Primary
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                Category
+              </label>
+              <input
+                type="text"
+                value={formData.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                placeholder="e.g., Handmade Jewelry"
+                required
+              />
+            </div>
+
+            {/* Quantity */}
+            <div>
+              <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                Quantity in Stock
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={formData.quantity}
+                onChange={(e) => handleInputChange('quantity', e.target.value)}
+                className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Rating */}
+              <div>
+                <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                  Rating (0-5)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={formData.rating}
+                  onChange={(e) => handleInputChange('rating', e.target.value)}
+                  className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                />
+              </div>
+
+              {/* Reviews */}
+              <div>
+                <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                  Number of Reviews
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.reviews}
+                  onChange={(e) => handleInputChange('reviews', e.target.value)}
+                  className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                />
+              </div>
+            </div>
+
+            {/* Switch Components */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                    In Stock
+                  </label>
+                  <p className="text-xs text-rose-600 dark:text-rose-400">
+                    Toggle if this product is currently available for purchase
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.inStock}
+                  onCheckedChange={(checked) => handleInputChange('inStock', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                    Featured Product
+                  </label>
+                  <p className="text-xs text-rose-600 dark:text-rose-400">
+                    Featured products are highlighted on your homepage
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.isFeatured}
+                  onCheckedChange={(checked) => handleInputChange('isFeatured', checked)}
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                className="flex-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+                disabled={loading || (mode === 'add') || uploading}
+              >
+                {loading ? (
+                  'Saving...'
+                ) : uploading ? (
+                  'Uploading Images...'
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    {mode === 'add' ? 'Add Product' : 'Save Changes'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
-};
+}
