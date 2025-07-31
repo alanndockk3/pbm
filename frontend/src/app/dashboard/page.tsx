@@ -1,4 +1,4 @@
-// Updated dashboard page with real order data
+// Updated dashboard page with ProductModal
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import Footer from '@/components/footer';
 import Wishlist from '@/components/account/wishlist/Wishlist';
-import { WishlistProductModal } from '@/components/account/wishlist/WishlistProductModal';
+import { ProductModal } from '@/components/product/ProductModal'; // Changed import
 import { OrderCard } from '@/components/account/orders/OrderCard';
 import { 
   Heart, 
@@ -27,6 +27,29 @@ import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../..
 import { useProductStore, useProducts } from '../../../lib/product/useProductStore';
 import { useUserOrders, useOrderActions } from '../../../lib/orders/useOrderStore';
 import type { Product } from '../../../types/product';
+import type { StripeProduct } from '../../../lib/product/useProductStore';
+
+// Helper function to convert Product to StripeProduct format
+const convertToStripeProduct = (product: Product): StripeProduct => {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    images: product.image ? [product.image] : [],
+    image: product.image ?? undefined,
+    price: product.price,
+    quantity: product.quantity,
+    rating: product.rating,
+    reviews: product.reviews,
+    category: product.category,
+    inStock: product.inStock,
+    isFeatured: product.isFeatured,
+    // Add any other StripeProduct specific fields with defaults
+    metadata: {},
+    active: true,
+    defaultPrice: undefined, // Will use legacy price field
+  };
+};
 
 export default function Dashboard() {
   const { user, logout } = useAuthStore();
@@ -37,7 +60,7 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Wishlist and product stores
-  const { loadWishlist, removeFromWishlist, subscribeToWishlist } = useWishlistStore();
+  const { loadWishlist, removeFromWishlist, subscribeToWishlist, toggleWishlist } = useWishlistStore();
   const wishlistProductIds = useWishlistItems();
   const wishlistLoading = useWishlistLoading();
   const { initializeProducts } = useProductStore();
@@ -57,6 +80,11 @@ export default function Dashboard() {
       .map(productId => allProducts.find(product => product.id === productId))
       .filter(Boolean) as Product[];
   }, [wishlistProductIds, allProducts]);
+
+  // Convert selected product to StripeProduct format when needed
+  const selectedStripeProduct = useMemo(() => {
+    return selectedProduct ? convertToStripeProduct(selectedProduct) : null;
+  }, [selectedProduct]);
 
   // Initialize data on mount
   useEffect(() => {
@@ -109,6 +137,24 @@ export default function Dashboard() {
     }
   };
 
+  // Handle heart click for ProductModal (toggles wishlist)
+  const handleHeartClick = async (e: React.MouseEvent) => {
+    if (!user?.uid || !selectedProduct) return;
+    
+    try {
+      await toggleWishlist(user.uid, selectedProduct.id);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+    }
+  };
+
+  // Handle purchase click for ProductModal
+  const handlePurchaseClick = () => {
+    if (selectedProduct) {
+      handleAddToCart(selectedProduct.id, 1);
+    }
+  };
+
   const handleViewAllWishlist = () => {
     router.push('/dashboard/wishlist');
   };
@@ -133,6 +179,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+
       {/* Welcome Section */}
       <section className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
@@ -345,17 +392,21 @@ export default function Dashboard() {
 
       <Footer />
 
-      {/* Wishlist Product Modal */}
-      {selectedProduct && (
-        <WishlistProductModal
-          product={selectedProduct}
+      {/* Product Modal - Updated to use ProductModal */}
+      {selectedStripeProduct && (
+        <ProductModal
+          product={selectedStripeProduct}
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false);
             setSelectedProduct(null);
           }}
-          onAddToCart={handleAddToCart}
-          onRemoveFromWishlist={handleRemoveFromWishlist}
+          onHeartClick={handleHeartClick}
+          onPurchaseClick={handlePurchaseClick}
+          showQuantity={true}
+          purchaseButtonText="Add to Cart"
+          disabled={false}
+          isInWishlist={true} // Always true since this comes from wishlist
         />
       )}
     </div>

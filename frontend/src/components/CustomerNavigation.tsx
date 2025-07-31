@@ -297,23 +297,6 @@ export function CustomerNavigation() {
                 ))}
               </div>
             </div>
-            
-            {/* Quick Stats Card - at the very bottom of navigation area */}
-            <div className="px-3 pt-4 pb-2">
-              <div className="p-3 bg-gradient-to-r from-gray-50 to-gray-100/60 dark:from-gray-800/50 dark:to-gray-700/50 rounded-xl border border-gray-200/60 dark:border-gray-700/40">
-                <h4 className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Quick Stats</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{cartTotalItems}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Cart Items</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{wishlistCount}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Wishlist</p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Enhanced Logout section */}

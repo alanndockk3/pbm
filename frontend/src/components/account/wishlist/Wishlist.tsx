@@ -174,9 +174,6 @@ export default function Wishlist({
             <p className="text-rose-600 dark:text-rose-400 mb-6">
               Start adding items you love to keep track of them!
             </p>
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
-              Browse Products
-            </Button>
           </CardContent>
         </Card>
       ) : (

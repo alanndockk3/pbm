@@ -15,14 +15,36 @@ import {
 import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../../lib/profile/useWishListStore';
 import { useProductStore, useProducts } from '../../../../lib/product/useProductStore';
-import { WishlistProductCard } from './WishlistProductCard';
-import { WishlistProductModal } from './WishlistProductModal';
+import { ProductModal } from '@/components/product/ProductModal';
 import type { Product } from '../../../../types/product';
+import type { StripeProduct } from '../../../../lib/product/useProductStore';
 
 interface WishlistCardProps {
   onAddToCart?: (itemId: string) => void;
   className?: string;
 }
+
+// Helper function to convert Product to StripeProduct format
+const convertToStripeProduct = (product: Product): StripeProduct => {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    images: product.image ? [product.image] : [],
+    image: product.image ?? undefined,
+    price: product.price,
+    quantity: product.quantity,
+    rating: product.rating,
+    reviews: product.reviews,
+    category: product.category,
+    inStock: product.inStock,
+    isFeatured: product.isFeatured,
+    // Add any other StripeProduct specific fields with defaults
+    metadata: {},
+    active: true,
+    defaultPrice: undefined, // Will use legacy price field
+  };
+};
 
 export default function WishlistCard({ onAddToCart, className = "" }: WishlistCardProps) {
   const router = useRouter();
@@ -31,7 +53,7 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Wishlist store
-  const { loadWishlist, removeFromWishlist, subscribeToWishlist } = useWishlistStore();
+  const { loadWishlist, removeFromWishlist, subscribeToWishlist, toggleWishlist } = useWishlistStore();
   const wishlistProductIds = useWishlistItems();
   const wishlistLoading = useWishlistLoading();
   
@@ -45,6 +67,11 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
       .map(productId => allProducts.find(product => product.id === productId))
       .filter(Boolean) as Product[];
   }, [wishlistProductIds, allProducts]);
+
+  // Convert selected product to StripeProduct format when needed
+  const selectedStripeProduct = useMemo(() => {
+    return selectedProduct ? convertToStripeProduct(selectedProduct) : null;
+  }, [selectedProduct]);
 
   // Initialize data on mount
   useEffect(() => {
@@ -85,8 +112,31 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
     
     try {
       await removeFromWishlist(user.uid, itemId);
+      // Close modal if the removed item was being viewed
+      if (selectedProduct?.id === itemId) {
+        setIsModalOpen(false);
+        setSelectedProduct(null);
+      }
     } catch (error) {
       console.error('Error removing from wishlist:', error);
+    }
+  };
+
+  // Handle heart click for ProductModal (toggles wishlist)
+  const handleHeartClick = async (e: React.MouseEvent) => {
+    if (!user?.uid || !selectedProduct) return;
+    
+    try {
+      await toggleWishlist(user.uid, selectedProduct.id);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+    }
+  };
+
+  // Handle purchase click for ProductModal
+  const handlePurchaseClick = () => {
+    if (selectedProduct) {
+      handleAddToCartClick(selectedProduct.id, 1);
     }
   };
 
@@ -118,8 +168,8 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
       <CardContent>
         {wishlistLoading ? (
           <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-xl flex items-center justify-center animate-pulse">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={`loading-${i}`} className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-xl flex items-center justify-center animate-pulse">
                 <Heart className="w-6 h-6 text-pink-300" />
               </div>
             ))}
@@ -129,19 +179,13 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
             <Heart className="w-12 h-12 text-rose-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-rose-900 dark:text-rose-100 mb-2">Your wishlist is empty</h3>
             <p className="text-rose-600 dark:text-rose-400 mb-4">Start adding items you love!</p>
-            <Button 
-              onClick={() => router.push('/dashboard/products')}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
-            >
-              Browse Products
-            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
             {/* Show first 6 wishlist items */}
             {wishlistItems.slice(0, 6).map((item) => (
               <div 
-                key={item.id} 
+                key={`wishlist-item-${item.id}`} 
                 className="group aspect-square rounded-xl flex flex-col items-center justify-center relative overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
                 onClick={() => handleViewWishlistItem(item.id)}
                 style={{
@@ -218,17 +262,21 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
         )}
       </CardContent>
       
-      {/* Wishlist Product Modal */}
-      {selectedProduct && (
-        <WishlistProductModal
-          product={selectedProduct}
+      {/* Product Modal - Updated to use ProductModal */}
+      {selectedStripeProduct && (
+        <ProductModal
+          product={selectedStripeProduct}
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false);
             setSelectedProduct(null);
           }}
-          onAddToCart={handleAddToCartClick}
-          onRemoveFromWishlist={handleRemoveFromWishlist}
+          onHeartClick={handleHeartClick}
+          onPurchaseClick={handlePurchaseClick}
+          showQuantity={true}
+          purchaseButtonText="Add to Cart"
+          disabled={false}
+          isInWishlist={true}
         />
       )}
     </Card>
