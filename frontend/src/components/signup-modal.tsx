@@ -1,8 +1,11 @@
+// components/auth/signup-modal.tsx
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Sparkles, X, Mail, Lock, User, AlertCircle, Loader2 } from "lucide-react";
 import { useAuthStore } from '../../lib/auth/useAuthStore';
+import { LegalModal } from './legal/LegalModal';
+import { TermsOfServiceContent, PrivacyPolicyContent } from './legal/LegalContent';
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -10,7 +13,7 @@ interface SignupModalProps {
   onSwitchToLogin: () => void;
 }
 
-// Modal Component
+// Main Modal Wrapper Component
 const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => {
   if (!isOpen) return null;
 
@@ -31,6 +34,10 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
 
 export const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLogin }) => {
   const { signup, loading, error, clearError } = useAuthStore();
+  
+  // Legal modals state
+  const [tosModalOpen, setTosModalOpen] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -134,149 +141,187 @@ export const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwi
       password: '',
       terms: ''
     });
+    // Close legal modals too
+    setTosModalOpen(false);
+    setPrivacyModalOpen(false);
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose}>
-      <Card className="border-0 shadow-2xl bg-white/95 dark:bg-rose-900/95 backdrop-blur-sm">
-        <CardHeader className="text-center pb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
-          <CardTitle className="text-2xl text-rose-900 dark:text-rose-100">Join Our Community</CardTitle>
-          <CardDescription className="text-rose-700 dark:text-rose-300">
-            Create your account and start discovering beautiful handmade treasures
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          {/* Display general error from Firebase */}
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-              <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
+    <>
+      <Modal isOpen={isOpen} onClose={handleClose}>
+        <Card className="border-0 shadow-2xl bg-white/95 dark:bg-rose-900/95 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-8 h-8 text-white" />
             </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-rose-800 dark:text-rose-200">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
-                <input 
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                    validationErrors.fullName ? 'border-red-300 dark:border-red-700' : 'border-rose-200 dark:border-rose-700'
-                  }`}
-                  placeholder="Your full name"
-                />
+            <CardTitle className="text-2xl text-rose-900 dark:text-rose-100">Join Our Community</CardTitle>
+            <CardDescription className="text-rose-700 dark:text-rose-300">
+              Create your account and start discovering beautiful handmade treasures
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            {/* Display general error from Firebase */}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
               </div>
-              {validationErrors.fullName && (
-                <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.fullName}</p>
-              )}
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-rose-800 dark:text-rose-200">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
-                <input 
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                    validationErrors.email ? 'border-red-300 dark:border-red-700' : 'border-rose-200 dark:border-rose-700'
-                  }`}
-                  placeholder="your@email.com"
-                />
-              </div>
-              {validationErrors.email && (
-                <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.email}</p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-rose-800 dark:text-rose-200">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
-                <input 
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                    validationErrors.password ? 'border-red-300 dark:border-red-700' : 'border-rose-200 dark:border-rose-700'
-                  }`}
-                  placeholder="Create a password"
-                />
-              </div>
-              {validationErrors.password && (
-                <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.password}</p>
-              )}
-            </div>
-
-            <div className="flex items-start space-x-2 text-sm">
-              <input 
-                type="checkbox"
-                name="agreeToTerms"
-                checked={formData.agreeToTerms}
-                onChange={handleInputChange}
-                className={`rounded border-rose-300 mt-1 ${
-                  validationErrors.terms ? 'border-red-300 dark:border-red-700' : ''
-                }`}
-              />
-              <div>
-                <span className="text-rose-700 dark:text-rose-300">
-                  I agree to the{' '}
-                  <a href="#" className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300">
-                    Terms of Service
-                  </a>{' '}
-                  and{' '}
-                  <a href="#" className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300">
-                    Privacy Policy
-                  </a>
-                </span>
-                {validationErrors.terms && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">{validationErrors.terms}</p>
+            <div className="space-y-4">
+              {/* Full Name Field */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-rose-800 dark:text-rose-200">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
+                  <input 
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500 ${
+                      validationErrors.fullName ? 'border-red-300 dark:border-red-700' : 'border-rose-200 dark:border-rose-700'
+                    }`}
+                    placeholder="Your full name"
+                  />
+                </div>
+                {validationErrors.fullName && (
+                  <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.fullName}</p>
                 )}
               </div>
+
+              {/* Email Field */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-rose-800 dark:text-rose-200">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
+                  <input 
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500 ${
+                      validationErrors.email ? 'border-red-300 dark:border-red-700' : 'border-rose-200 dark:border-rose-700'
+                    }`}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                {validationErrors.email && (
+                  <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.email}</p>
+                )}
+              </div>
+              
+              {/* Password Field */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-rose-800 dark:text-rose-200">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-rose-500" />
+                  <input 
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 placeholder-rose-500 focus:outline-none focus:ring-2 focus:ring-pink-500 ${
+                      validationErrors.password ? 'border-red-300 dark:border-red-700' : 'border-rose-200 dark:border-rose-700'
+                    }`}
+                    placeholder="Create a password"
+                  />
+                </div>
+                {validationErrors.password && (
+                  <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.password}</p>
+                )}
+              </div>
+
+              {/* Updated Terms and Privacy Agreement with Modal Links */}
+              <div className="flex items-start space-x-2 text-sm">
+                <input 
+                  type="checkbox"
+                  name="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onChange={handleInputChange}
+                  className={`rounded border-rose-300 mt-1 accent-pink-500 ${
+                    validationErrors.terms ? 'border-red-300 dark:border-red-700' : ''
+                  }`}
+                />
+                <div>
+                  <span className="text-rose-700 dark:text-rose-300">
+                    I agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={() => setTosModalOpen(true)}
+                      className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 underline font-medium transition-colors"
+                    >
+                      Terms of Service
+                    </button>{' '}
+                    and{' '}
+                    <button
+                      type="button"
+                      onClick={() => setPrivacyModalOpen(true)}
+                      className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 underline font-medium transition-colors"
+                    >
+                      Privacy Policy
+                    </button>
+                  </span>
+                  {validationErrors.terms && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">{validationErrors.terms}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <Button 
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-3 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                    Creating Account...
+                  </>
+                ) : (
+                  <>
+                    Create Account
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </>
+                )}
+              </Button>
             </div>
 
-            <Button 
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-3 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                <>
-                  Create Account
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </>
-              )}
-            </Button>
-          </form>
+            {/* Switch to Login */}
+            <div className="text-center text-sm text-rose-600 dark:text-rose-400 mt-4">
+              Already have an account?{' '}
+              <button 
+                onClick={onSwitchToLogin}
+                className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 font-medium"
+              >
+                Sign in here
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </Modal>
 
-          <div className="text-center text-sm text-rose-600 dark:text-rose-400 mt-4">
-            Already have an account?{' '}
-            <button 
-              onClick={onSwitchToLogin}
-              className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 font-medium"
-            >
-              Sign in here
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-    </Modal>
+      {/* Legal Modals */}
+      <LegalModal
+        isOpen={tosModalOpen}
+        onClose={() => setTosModalOpen(false)}
+        type="terms"
+        title="Terms of Service"
+      >
+        <TermsOfServiceContent />
+      </LegalModal>
+
+      <LegalModal
+        isOpen={privacyModalOpen}
+        onClose={() => setPrivacyModalOpen(false)}
+        type="privacy"
+        title="Privacy Policy"
+      >
+        <PrivacyPolicyContent />
+      </LegalModal>
+    </>
   );
 };

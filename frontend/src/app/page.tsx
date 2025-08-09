@@ -1,3 +1,4 @@
+// app/page.tsx
 'use client'
 
 import React, { useState, useEffect } from 'react';
@@ -21,6 +22,14 @@ import { useProductStore, useFeaturedProducts } from '../../lib/product/useProdu
 import { ProductCard } from '@/components/product/ProductCard';
 import Footer from '@/components/footer';
 
+
+import { FloatingCraftElements } from '@/components/landing-page/FloatingCraftElements';
+import { CustomerTestimonials } from '@/components/landing-page/CustomerTestimonials';
+import { CraftProcessShowcase } from '@/components/landing-page/CraftProcessShowcase';
+import { ArtisanStorySection } from '@/components/landing-page/ArtisanStorySection';
+import { NewsletterSignup } from '@/components/landing-page/NewsletterSignup';
+import { PreviousCreationsShowcase } from '@/components/landing-page/PreviousCreationsShowcase';
+
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuthStore();
@@ -30,12 +39,10 @@ export default function Home() {
   const [isSignupOpen, setIsSignupOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
-
   useEffect(() => {
     initializeProducts();
     setHasMounted(true);
   }, [initializeProducts]);
-
 
   useEffect(() => {
     if (!loading && user) {
@@ -96,9 +103,13 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950 relative">
+      
+      {/* Floating Craft Elements */}
+      <FloatingCraftElements />
+
       {/* Header */}
-      <header className="container mx-auto px-4 py-6 flex justify-between items-center">
+      <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
             <Heart className="w-5 h-5 text-white" />
@@ -126,7 +137,7 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-40 text-center">
+      <section className="container mx-auto px-4 py-32 text-center relative z-10">
         <Badge variant="secondary" className="mb-6 px-4 py-2 bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
           <Sparkles className="w-4 h-4 mr-2" />
           Handcrafted with Love
@@ -167,11 +178,11 @@ export default function Home() {
         <div className="flex flex-wrap justify-center items-center gap-8 text-rose-600 dark:text-rose-400">
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-500" />
-            <span>100+ Happy Customers</span>
+            <span>500+ Happy Customers</span>
           </div>
           <div className="flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-500" />
-            <span>5-Star Reviews</span>
+            <span>4.9 Star Reviews</span>
           </div>
           <div className="flex items-center gap-2">
             <Gift className="w-5 h-5 text-purple-500" />
@@ -180,8 +191,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products Section - Hydration Safe */}
-      <section id="featured-products" className="container mx-auto px-4 py-22">
+      {/* Featured Products Section */}
+      <section id="featured-products" className="container mx-auto px-4 py-22 relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-rose-900 dark:text-rose-100 mb-4">
             Featured Handmade Treasures
@@ -193,23 +204,19 @@ export default function Home() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {!hasMounted ? (
-            // Show skeletons on server and initial client render
             [...Array(6)].map((_, i) => (
               <ProductSkeleton key={`skeleton-${i}`} />
             ))
           ) : featuredProducts.length === 0 ? (
-            // Show skeletons if products haven't loaded yet
             [...Array(6)].map((_, i) => (
               <ProductSkeleton key={`loading-${i}`} />
             ))
           ) : (
-            // Show actual products after mount and data load
             featuredProducts.map(product => (
               <ProductCard 
                 key={product.id} 
                 product={product}
                 onViewClick={handleProductAction}
-                //onHeartClick={handleProductAction}
                 onPurchaseClick={handleProductAction}
                 purchaseButtonText="Sign Up to Purchase"
                 showQuantity={false}
@@ -223,7 +230,7 @@ export default function Home() {
             size="lg" 
             variant="outline" 
             className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-4 text-lg"
-            onClick={() => router.push('products/')}
+            onClick={() => router.push('/products')}
           >
             View All Products
             <ArrowRight className="ml-2 w-5 h-5" />
@@ -231,8 +238,17 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Artisan Story Section */}
+      <ArtisanStorySection />
+
+      {/* Craft Process Showcase */}
+      <CraftProcessShowcase />
+
+      {/* Customer Testimonials -- Add Later With Reviews*/}
+      {/* <CustomerTestimonials /> */}
+
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-20">
+      <section className="container mx-auto px-4 py-20 relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-rose-900 dark:text-rose-100 mb-4">
             Why Choose Our Handmade Crafts?
@@ -281,57 +297,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      
-      {/* <section className="container mx-auto px-4 py-20">
-        <Card className="border-0 shadow-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-rose-500 text-white overflow-hidden relative">
-          <div className="absolute inset-0 bg-white/5 bg-[radial-gradient(circle_at_30%_40%,rgba(255,255,255,0.1),transparent_50%)]"></div>
-          <CardContent className="p-12 text-center relative z-10">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Ready to Find Your Perfect Piece?
-            </h2>
-            <p className="text-lg text-pink-100 mb-8 max-w-2xl mx-auto">
-              Join our community of craft lovers and discover beautiful, unique items that tell a story. 
-              Start your collection today!
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-              <Button 
-                size="lg" 
-                variant="secondary" 
-                className="bg-white text-purple-700 hover:bg-pink-50 px-8 py-6 text-lg shadow-lg"
-                onClick={() => setIsSignupOpen(true)}
-              >
-                Create Account
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm px-8 py-6 text-lg"
-                onClick={() => document.getElementById('featured-products')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                Browse Catalog
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-6 text-sm text-pink-100">
-              <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-pink-200" />
-                <span>Free shipping on orders $50+</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-pink-200" />
-                <span>Satisfaction guaranteed</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Gift className="w-4 h-4 text-pink-200" />
-                <span>Perfect for gifting</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section> */}
+      {/* Newsletter Signup */}
+      <NewsletterSignup />
 
       {/* Footer */}
       <Footer />
