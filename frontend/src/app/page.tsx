@@ -223,7 +223,7 @@ export default function Home() {
             size="lg" 
             variant="outline" 
             className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-4 text-lg"
-            onClick={() => setIsSignupOpen(true)}
+            onClick={() => router.push('products/')}
           >
             View All Products
             <ArrowRight className="ml-2 w-5 h-5" />
