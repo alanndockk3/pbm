@@ -160,8 +160,6 @@ export const useProductStore = create<ProductState>()(
         },
 
         refreshProducts: async () => {
-          console.log('🔄 Manual refresh requested');
-          // Just call initializeProducts again for manual refresh
           await get().initializeProducts();
         },
 
@@ -169,28 +167,21 @@ export const useProductStore = create<ProductState>()(
           set({ loading: true, error: null });
           
           try {
-            console.log('🚀 Starting product initialization...');
-            
-            // Get active products without ordering first
-            console.log('📦 Fetching active products...');
             const productsQuery = query(
               collection(db, 'products'), 
               where('active', '==', true)
             );
             
             const productsSnapshot = await getDocs(productsQuery);
-            console.log(`Found ${productsSnapshot.size} active products`);
             
             // Try to get prices, but don't fail if it doesn't work
             let pricesByProduct: Record<string, StripePrice[]> = {};
             
             try {
-              console.log('💰 Fetching prices...');
               
               // Get all prices without filtering first
               const pricesQuery = query(collectionGroup(db, 'prices'));
               const pricesSnapshot = await getDocs(pricesQuery);
-              console.log(`Found ${pricesSnapshot.size} prices`);
               
               // Group prices by product and filter active ones in memory
               pricesSnapshot.forEach((doc) => {
@@ -199,7 +190,6 @@ export const useProductStore = create<ProductState>()(
                   ...doc.data(),
                 } as StripePrice;
                 
-                console.log('Price data:', price);
                 
                 // Filter active prices in memory instead of in query
                 if (price.active === true) {
@@ -210,26 +200,19 @@ export const useProductStore = create<ProductState>()(
                 }
               });
             } catch (priceError) {
-              console.warn('⚠️ Could not fetch prices, continuing without them:', priceError);
+              console.warn('Could not fetch prices, continuing without them:', priceError);
             }
 
             // Build products with their prices
             const products: StripeProduct[] = [];
             productsSnapshot.forEach((doc) => {
-              console.log('Processing product:', doc.id, doc.data());
               const productPrices = pricesByProduct[doc.id] || [];
               const product = firestoreToStripeProduct(doc, productPrices);
-              console.log('Processed product:', product);
               products.push(product);
             });
 
-            console.log(`✅ Processed ${products.length} products`);
-
             const featuredProducts = products.filter(p => p.isFeatured);
             const categories = ['All', ...Array.from(new Set(products.map(p => p.category).filter((cat): cat is string => Boolean(cat))))];
-
-            console.log(`🌟 Found ${featuredProducts.length} featured products`);
-            console.log(`📁 Found ${categories.length} categories:`, categories);
 
             set({
               products,
@@ -244,7 +227,7 @@ export const useProductStore = create<ProductState>()(
             get().setupRealtimeListener();
 
           } catch (error) {
-            console.error('❌ Error loading products:', error);
+            console.error('Error loading products:', error);
             set({ 
               error: error instanceof Error ? error.message : 'Failed to load products',
               loading: false 
@@ -266,7 +249,6 @@ export const useProductStore = create<ProductState>()(
           unsubscribeRealtime = onSnapshot(productsQuery, 
             async (snapshot) => {
               try {
-                console.log('🔄 Realtime listener triggered, found', snapshot.size, 'products');
                 
                 // Get updated prices
                 let pricesByProduct: Record<string, StripePrice[]> = {};
@@ -290,19 +272,14 @@ export const useProductStore = create<ProductState>()(
                     }
                   });
                 } catch (priceError) {
-                  console.warn('⚠️ Realtime price fetch failed:', priceError);
                 }
 
                 const products: StripeProduct[] = [];
                 snapshot.forEach((doc) => {
-                  console.log('🔄 Processing realtime product:', doc.id, doc.data());
                   const productPrices = pricesByProduct[doc.id] || [];
                   const product = firestoreToStripeProduct(doc, productPrices);
-                  console.log('🔄 Processed realtime product:', product);
                   products.push(product);
                 });
-
-                console.log(`🔄 Realtime processed ${products.length} products`);
 
                 const featuredProducts = products.filter(p => p.isFeatured);
                 const categories = ['All', ...Array.from(new Set(products.map(p => p.category).filter((cat): cat is string => Boolean(cat))))];
@@ -315,7 +292,7 @@ export const useProductStore = create<ProductState>()(
                   error: null
                 });
               } catch (error) {
-                console.error('❌ Error in realtime listener:', error);
+                console.error('Error in listener:', error);
                 set({ 
                   error: 'Failed to sync with database',
                   isRealTimeActive: false 
@@ -323,7 +300,7 @@ export const useProductStore = create<ProductState>()(
               }
             },
             (error) => {
-              console.error('❌ Realtime listener error:', error);
+              console.error('Listener error:', error);
               set({ 
                 error: 'Failed to sync with database',
                 isRealTimeActive: false 
@@ -386,10 +363,6 @@ export const useProductStore = create<ProductState>()(
         }),
         onRehydrateStorage: () => (state) => {
           state?.setHasHydrated(true);
-          // Don't automatically setup realtime listener on rehydration
-          // if (state && state.products.length > 0) {
-          //   state.setupRealtimeListener();
-          // }
         },
       }
     ),
