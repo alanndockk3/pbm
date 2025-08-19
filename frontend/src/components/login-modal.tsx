@@ -187,18 +187,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
 
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center space-x-2 text-rose-700 dark:text-rose-300">
-                <input 
+                {/* <input 
                   type="checkbox"
                   name="rememberMe"
                   checked={formData.rememberMe}
                   onChange={handleInputChange}
                   className="rounded border-rose-300"
                 />
-                <span>Remember me</span>
+                <span>Remember me</span> */}
               </label>
-              <a href="#" className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300">
+              {/* <a href="#" className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300">
                 Forgot password?
-              </a>
+              </a> */}
             </div>
 
             <Button 
@@ -220,7 +220,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
             </Button>
           </form>
 
-          <div className="text-center text-sm text-rose-600 dark:text-rose-400 mt-4">
+          {/* <div className="text-center text-sm text-rose-600 dark:text-rose-400 mt-4">
             Don't have an account?{' '}
             <button 
               onClick={onSwitchToSignup}
@@ -228,7 +228,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
             >
               Sign up here
             </button>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </Modal>

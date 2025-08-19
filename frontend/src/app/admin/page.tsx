@@ -183,14 +183,14 @@ export default function AdminDashboard() {
                 <Package className="w-4 h-4 mr-3" />
                 Manage Products
               </Button>
-              <Button
+              {/* <Button
                 onClick={() => router.push('/admin/products?action=add')}
                 variant="outline"
                 className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
               >
                 <Plus className="w-4 h-4 mr-3" />
                 Add New Product
-              </Button>
+              </Button> */}
               <Button
                 onClick={() => router.push('/admin/orders')}
                 variant="outline"

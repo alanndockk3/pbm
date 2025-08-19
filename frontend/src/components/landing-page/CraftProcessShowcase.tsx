@@ -31,7 +31,7 @@ const processSteps = [
     icon: Palette,
     color: "from-purple-400 to-pink-500",
     bgColor: "from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20",
-    image: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&h=300&fit=crop",
+   image: "https://images.unsplash.com/photo-1522881451255-f59ad836fdfb?w=400&h=300&fit=crop&auto=format",
     time: "Day 2-3"
   },
   {
@@ -41,8 +41,8 @@ const processSteps = [
     icon: Scissors,
     color: "from-blue-400 to-purple-500",
     bgColor: "from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20",
-    image: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400&h=300&fit=crop",
-    time: "Day 4-10"
+    image: "https://images.unsplash.com/photo-1516783154360-123b392d0833?w=400&h=300&fit=crop&auto=format",
+    time: "Day 4-6"
   },
   {
     id: 4,
@@ -51,8 +51,8 @@ const processSteps = [
     icon: Package,
     color: "from-green-400 to-teal-500",
     bgColor: "from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20",
-    image: "https://images.unsplash.com/photo-1607462109225-6b64ae2dd3cb?w=400&h=300&fit=crop",
-    time: "Day 11-12"
+    image: "https://images.unsplash.com/photo-1609143739217-01b60dad1c67?w=400&h=300&fit=crop&auto=format",
+    time: "Day 7-10"
   }
 ];
 

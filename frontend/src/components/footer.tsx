@@ -10,7 +10,7 @@ export default function Footer() {
           </div>
           <div>
             <span className="font-semibold text-rose-800 dark:text-rose-200">PBM - Pretties by Marg</span>
-            <p className="text-xs text-rose-600 dark:text-rose-400">Handcrafted with love since 2024</p>
+            <p className="text-xs text-rose-600 dark:text-rose-400">Handcrafted with love since 2018</p>
           </div>
         </div>
         

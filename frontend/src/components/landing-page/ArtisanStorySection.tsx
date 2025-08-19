@@ -29,7 +29,7 @@ export const ArtisanStorySection = () => {
             </Badge>
             
             <h2 className="text-3xl md:text-4xl font-bold text-rose-900 dark:text-rose-100 mb-6 leading-tight">
-              Hi, I'm Margaret -
+              Hi, I'm Marg -
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
                 Your Craft Creator
               </span>
@@ -47,8 +47,8 @@ export const ArtisanStorySection = () => {
 
             <div className="prose prose-rose dark:prose-invert max-w-none mb-8">
               <p className="text-rose-700 dark:text-rose-300 leading-relaxed">
-                What started as a hobby during college has blossomed into a passionate business. 
-                For over 8 years, I've been creating handmade treasures from my cozy studio, 
+                What started as a hobby has blossomed into a passionate business. 
+                Over the years, I've been creating handmade treasures from my cozy porch, 
                 combining traditional techniques with modern design sensibilities.
               </p>
               <p className="text-rose-700 dark:text-rose-300 leading-relaxed">
@@ -62,33 +62,33 @@ export const ArtisanStorySection = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <div className="text-center p-4 bg-white/50 dark:bg-rose-900/20 rounded-lg backdrop-blur-sm">
                 <Calendar className="w-6 h-6 text-pink-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">8+</div>
+                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">6+</div>
                 <div className="text-sm text-rose-600 dark:text-rose-400">Years</div>
               </div>
               <div className="text-center p-4 bg-white/50 dark:bg-rose-900/20 rounded-lg backdrop-blur-sm">
                 <Users className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">500+</div>
+                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">50+</div>
                 <div className="text-sm text-rose-600 dark:text-rose-400">Happy Customers</div>
               </div>
               <div className="text-center p-4 bg-white/50 dark:bg-rose-900/20 rounded-lg backdrop-blur-sm">
                 <Award className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">1000+</div>
+                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">200+</div>
                 <div className="text-sm text-rose-600 dark:text-rose-400">Items Crafted</div>
               </div>
               <div className="text-center p-4 bg-white/50 dark:bg-rose-900/20 rounded-lg backdrop-blur-sm">
                 <Star className="w-6 h-6 text-amber-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">4.9</div>
+                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">5</div>
                 <div className="text-sm text-rose-600 dark:text-rose-400">Star Rating</div>
               </div>
             </div>
 
-            <Button 
+            {/* <Button 
               size="lg" 
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg"
             >
               Learn More About My Journey
               <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
+            </Button> */}
           </div>
 
           {/* Image Gallery */}
@@ -97,7 +97,7 @@ export const ArtisanStorySection = () => {
               {/* Main Image */}
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1582192730841-2a682d7375f9?w=500&h=600&fit=crop&crop=face" 
+                  src="https://images.unsplash.com/photo-1700170447159-9d2d0da133a5?w=500&h=600&fit=crop&auto=format" 
                   alt="Margaret working on a handmade piece"
                   className="w-full h-96 md:h-[500px] object-cover"
                 />
@@ -134,7 +134,7 @@ export const ArtisanStorySection = () => {
               <div className="absolute bottom-6 -right-6 hidden lg:block">
                 <div className="bg-white dark:bg-rose-900 p-2 rounded-lg shadow-lg">
                   <img 
-                    src="https://images.unsplash.com/photo-1615887047859-4ed2cd7b6709?w=80&h=80&fit=crop" 
+                     src="https://images.unsplash.com/photo-1586569472133-cfdaef59a1b2?w=80&h=80&fit=crop&auto=format"
                     alt="Finished handmade item"
                     className="w-16 h-16 object-cover rounded"
                   />

@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link';
 import { Heart, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from 'next/navigation';
@@ -11,15 +12,15 @@ interface HeaderProps {
   children?: React.ReactNode;
 }
 
-export default function Header({ 
-  navigateBack = false, 
-  onNavigateBack, 
-  backText = "Go Back", 
+export default function Header({
+  navigateBack = false,
+  onNavigateBack,
+  backText = "Go Back",
   backUrl,
-  children 
+  children
 }: HeaderProps) {
   const router = useRouter();
-
+  
   const handleBackClick = () => {
     if (onNavigateBack) {
       onNavigateBack();
@@ -42,9 +43,9 @@ export default function Header({
           <ArrowLeft className="w-4 h-4 mr-2" />
           {backText}
         </Button>
-
-        {/* Right side - PBM Header */}
-        <div className="flex items-center gap-3">
+        
+        {/* Right side - PBM Header (clickable to home) */}
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
           <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
             <Heart className="w-5 h-5 text-white" />
           </div>
@@ -57,15 +58,15 @@ export default function Header({
               {children}
             </div>
           )}
-        </div>
+        </Link>
       </header>
     );
   }
 
-  // Default layout when navigateBack is false
+  // Default layout when navigateBack is false (clickable to home)
   return (
     <header className="container mx-auto px-4 py-6 flex justify-between items-center">
-      <div className="flex items-center gap-3">
+      <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
         <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
           <Heart className="w-5 h-5 text-white" />
         </div>
@@ -73,7 +74,7 @@ export default function Header({
           <h1 className="text-xl font-bold text-rose-800 dark:text-rose-200">PBM</h1>
           <p className="text-xs text-rose-600 dark:text-rose-300">Pretties by Marg</p>
         </div>
-      </div>
+      </Link>
       <div className="flex items-center gap-4">
         {children}
       </div>

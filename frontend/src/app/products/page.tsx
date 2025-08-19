@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -9,7 +10,6 @@ import {
   Grid3X3,
   List,
   Package,
-  ArrowLeft,
   Sparkles,
   Gift,
   Loader2,
@@ -19,12 +19,13 @@ import {
   ShoppingCart,
   User
 } from "lucide-react";
-import Footer from '@/components/footer';
+import LandingFooter from '@/components/LandingFooter';
 import { useProductStore, useProducts, useCategories, type StripeProduct } from '../../../lib/product/useProductStore';
 import ProductCard from '@/components/product/ProductCard';
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
 import { LoginModal } from '@/components/login-modal';
 import { SignupModal } from '@/components/signup-modal';
+
 
 export default function PublicProductsPage() {
   const router = useRouter();
@@ -170,7 +171,7 @@ export default function PublicProductsPage() {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
       {/* Header */}
       <header className="container mx-auto px-4 py-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
           <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
             <Heart className="w-5 h-5 text-white" />
           </div>
@@ -178,7 +179,7 @@ export default function PublicProductsPage() {
             <h1 className="text-xl font-bold text-rose-800 dark:text-rose-200">PBM</h1>
             <p className="text-xs text-rose-600 dark:text-rose-300">Pretties by Marg</p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-4">
           {user ? (
             <>
@@ -438,7 +439,7 @@ export default function PublicProductsPage() {
       </section>
 
       {/* Footer */}
-      <Footer />
+      <LandingFooter />
 
       {/* Modals */}
       <LoginModal 

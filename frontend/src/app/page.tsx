@@ -17,10 +17,11 @@ import {
 } from "lucide-react";
 import { LoginModal } from '@/components/login-modal';
 import { SignupModal } from '@/components/signup-modal';
+import { ComingSoonModal } from '@/components/coming-soon-modal';
 import { useAuthStore } from '../../lib/auth/useAuthStore';
 import { useProductStore, useFeaturedProducts } from '../../lib/product/useProductStore';
 import { ProductCard } from '@/components/product/ProductCard';
-import Footer from '@/components/footer';
+import LandingFooter from '@/components/LandingFooter';
 
 
 import { FloatingCraftElements } from '@/components/landing-page/FloatingCraftElements';
@@ -137,59 +138,62 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-32 text-center relative z-10">
-        <Badge variant="secondary" className="mb-6 px-4 py-2 bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
-          <Sparkles className="w-4 h-4 mr-2" />
-          Handcrafted with Love
-        </Badge>
-        
-        <h1 className="text-4xl md:text-6xl font-bold text-rose-900 dark:text-rose-100 mb-6 leading-tight">
-          Beautiful
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600"> Handmade</span>
-          <br />
-          Treasures
-        </h1>
-        
-        <p className="text-lg text-rose-700 dark:text-rose-300 mb-12 max-w-2xl mx-auto leading-relaxed">
-          Discover unique, lovingly crafted items that bring warmth and beauty to your home. 
-          Each piece is made with care, attention to detail, and a touch of magic.
-        </p>
+      <section className="min-h-screen flex items-center justify-center relative z-10">
+        <div className="container mx-auto px-4 text-center">
+            <Badge variant="secondary" className="mb-6 px-4 py-2 bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Handcrafted with Love
+            </Badge>
+            
+            <h1 className="text-4xl md:text-6xl font-bold text-rose-900 dark:text-rose-100 mb-6 leading-tight">
+              Beautiful
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600"> Handmade</span>
+              <br />
+              Treasures
+            </h1>
+            
+            <p className="text-lg text-rose-700 dark:text-rose-300 mb-12 max-w-2xl mx-auto leading-relaxed">
+              Discover unique, lovingly crafted items that bring warmth and beauty to your home. 
+              Each piece is made with care, attention to detail, and a touch of magic.
+            </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-          <Button 
-            size="lg" 
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-6 text-lg shadow-lg"
-            onClick={() => setIsSignupOpen(true)}
-          >
-            Start Shopping
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="lg" 
-            className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-6 text-lg"
-            onClick={() => document.getElementById('featured-products')?.scrollIntoView({ behavior: 'smooth' })}
-          >
-            Browse Gallery
-          </Button>
-        </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-6 text-lg shadow-lg"
+                onClick={() => setIsSignupOpen(true)}
+              >
+                Start Shopping
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900 px-8 py-6 text-lg"
+                onClick={() => document.getElementById('featured-products')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                Browse Gallery
+              </Button>
+            </div>
 
-        {/* Trust Indicators */}
-        <div className="flex flex-wrap justify-center items-center gap-8 text-rose-600 dark:text-rose-400">
-          <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-pink-500" />
-            <span>500+ Happy Customers</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-yellow-500" />
-            <span>4.9 Star Reviews</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Gift className="w-5 h-5 text-purple-500" />
-            <span>Custom Orders Welcome</span>
-          </div>
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap justify-center items-center gap-8 text-rose-600 dark:text-rose-400">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-pink-500" />
+                <span>50+ Happy Customers</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500" />
+                <span>5 Star Reviews</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-purple-500" />
+                <span>Custom Orders Welcome</span>
+              </div>
+            </div>
         </div>
       </section>
+      
 
       {/* Featured Products Section */}
       <section id="featured-products" className="container mx-auto px-4 py-22 relative z-10">
@@ -220,6 +224,7 @@ export default function Home() {
                 onPurchaseClick={handleProductAction}
                 purchaseButtonText="Sign Up to Purchase"
                 showQuantity={false}
+                disabled={!user}
               />
             ))
           )}
@@ -298,10 +303,10 @@ export default function Home() {
       </section>
 
       {/* Newsletter Signup */}
-      <NewsletterSignup />
+      {/* <NewsletterSignup /> */}
 
       {/* Footer */}
-      <Footer />
+      <LandingFooter />
 
       {/* Modals */}
       <LoginModal 
@@ -309,10 +314,16 @@ export default function Home() {
         onClose={() => setIsLoginOpen(false)}
         onSwitchToSignup={handleSwitchToSignup}
       />
-      <SignupModal 
+      {/* <SignupModal 
         isOpen={isSignupOpen} 
         onClose={() => setIsSignupOpen(false)}
         onSwitchToLogin={handleSwitchToLogin}
+      /> */}
+      <ComingSoonModal 
+        isOpen={isSignupOpen} 
+        onClose={() => setIsSignupOpen(false)}
+        title="New Feature Coming Soon"
+        description="We're building an amazing new dashboard experience!"
       />
     </div>
   );
