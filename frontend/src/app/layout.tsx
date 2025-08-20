@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pretties by Marg",
   description: "Handcrafted each item",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
