@@ -25,6 +25,7 @@ import ProductCard from '@/components/product/ProductCard';
 import { useAuthStore } from '../../../lib/auth/useAuthStore';
 import { LoginModal } from '@/components/login-modal';
 import { SignupModal } from '@/components/signup-modal';
+import { ComingSoonModal } from '@/components/coming-soon-modal';
 
 
 export default function PublicProductsPage() {
@@ -447,10 +448,16 @@ export default function PublicProductsPage() {
         onClose={() => setIsLoginOpen(false)}
         onSwitchToSignup={handleSwitchToSignup}
       />
-      <SignupModal 
+      {/* <SignupModal 
         isOpen={isSignupOpen} 
         onClose={() => setIsSignupOpen(false)}
         onSwitchToLogin={handleSwitchToLogin}
+      /> */}
+      <ComingSoonModal 
+        isOpen={isSignupOpen} 
+        onClose={() => setIsSignupOpen(false)}
+        title="New Feature Coming Soon"
+        description="We're building an amazing new dashboard experience!"
       />
     </div>
   );
