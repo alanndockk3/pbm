@@ -19,6 +19,9 @@ interface AdminProductFormProps {
 }
 
 interface FormData {
+  name: string;
+  description: string;
+  price: string;
   category: string;
   quantity: string;
   rating: string;
@@ -38,6 +41,7 @@ export function AdminProductForm({
   const { 
     loading, 
     error, 
+    createProduct,
     updateProductMetadata,
     clearError 
   } = useStripeAdminStore();
@@ -47,6 +51,9 @@ export function AdminProductForm({
   const [dragOver, setDragOver] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
+    name: '',
+    description: '',
+    price: '',
     category: '',
     quantity: '0',
     rating: '0',
@@ -61,6 +68,9 @@ export function AdminProductForm({
     if (product) {
       const metadata = product.metadata || {};
       setFormData({
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price?.toString() || (product.defaultPrice?.unit_amount ? (product.defaultPrice.unit_amount / 100).toString() : ''),
         category: metadata.category || product.category || '',
         quantity: metadata.quantity || product.quantity?.toString() || '0',
         rating: metadata.rating || product.rating?.toString() || '0',
@@ -72,6 +82,9 @@ export function AdminProductForm({
     } else {
       // Reset form for add mode
       setFormData({
+        name: '',
+        description: '',
+        price: '',
         category: '',
         quantity: '0',
         rating: '0',
@@ -182,32 +195,48 @@ export function AdminProductForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!product) {
-      // For add mode, we would need to integrate with Stripe API
-      // This is a simplified version that only handles editing
-      console.warn('Add mode not implemented yet - requires Stripe API integration');
-      return;
-    }
+    if (mode === 'add') {
+      // Create new product
+      if (!formData.name || !formData.description || !formData.price) {
+        alert('Name, description, and price are required');
+        return;
+      }
 
-    // Prepare metadata update
-    const updatedMetadata = {
-      ...product.metadata,
-      category: formData.category,
-      quantity: formData.quantity,
-      rating: formData.rating,
-      reviews: formData.reviews,
-      inStock: formData.inStock.toString(),
-      isFeatured: formData.isFeatured.toString(),
-    };
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        quantity: parseInt(formData.quantity) || 0,
+        rating: parseFloat(formData.rating) || 0,
+        reviews: parseInt(formData.reviews) || 0,
+        isFeatured: formData.isFeatured,
+        inStock: formData.inStock,
+        images: formData.images,
+      };
 
-    // Note: Images would typically be handled through Stripe's product.images field
-    // This is a simplified example - in a real app, you'd update the product images
-    // through the Stripe API directly
-    
-    const success = await updateProductMetadata(product.id, updatedMetadata);
-    
-    if (success) {
-      onSuccess();
+      const success = await createProduct(productData);
+      
+      if (success) {
+        onSuccess();
+      }
+    } else if (product) {
+      // Edit existing product
+      const updatedMetadata = {
+        ...product.metadata,
+        category: formData.category,
+        quantity: formData.quantity,
+        rating: formData.rating,
+        reviews: formData.reviews,
+        inStock: formData.inStock.toString(),
+        isFeatured: formData.isFeatured.toString(),
+      };
+
+      const success = await updateProductMetadata(product.id, updatedMetadata);
+      
+      if (success) {
+        onSuccess();
+      }
     }
   };
 
@@ -261,22 +290,7 @@ export function AdminProductForm({
             </div>
           )}
 
-          {/* Add mode notice */}
-          {mode === 'add' && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-blue-600 mr-2" />
-                <div>
-                  <h4 className="font-medium text-blue-800 dark:text-blue-200">
-                    Stripe Integration Required
-                  </h4>
-                  <p className="text-blue-600 dark:text-blue-300 text-sm mt-1">
-                    Adding new products requires Stripe API integration. Currently only editing existing products is supported.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+
 
           {/* Error Message */}
           {error && (
@@ -383,6 +397,53 @@ export function AdminProductForm({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Product Name */}
+            <div>
+              <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                Product Name *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                placeholder="Enter product name"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                placeholder="Enter product description"
+                rows={3}
+                required
+              />
+            </div>
+
+            {/* Price */}
+            <div>
+              <label className="block text-sm font-medium text-rose-700 dark:text-rose-300 mb-1">
+                Price (USD) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                className="w-full px-3 py-2 border border-rose-300 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                placeholder="0.00"
+                required
+              />
             </div>
 
             {/* Category */}
@@ -494,7 +555,7 @@ export function AdminProductForm({
               <Button
                 type="submit"
                 className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
-                disabled={loading || (mode === 'add') || uploading}
+                disabled={loading || uploading}
               >
                 {loading ? (
                   'Saving...'

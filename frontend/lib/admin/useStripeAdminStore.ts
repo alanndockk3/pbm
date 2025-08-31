@@ -21,6 +21,7 @@ interface StripeAdminState {
   error: string | null;
   
   // Actions for Stripe products
+  createProduct: (productData: CreateProductData) => Promise<boolean>;
   updateProductMetadata: (id: string, metadata: Record<string, any>) => Promise<boolean>;
   toggleProductActive: (product: StripeProduct) => Promise<boolean>;
   toggleProductFeatured: (product: StripeProduct) => Promise<boolean>;
@@ -35,10 +36,60 @@ interface StripeAdminState {
   clearError: () => void;
 }
 
+interface CreateProductData {
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  quantity: number;
+  rating: number;
+  reviews: number;
+  isFeatured: boolean;
+  inStock: boolean;
+  images: string[];
+}
+
 export const useStripeAdminStore = create<StripeAdminState>((set, get) => ({
   loading: false,
   uploading: false,
   error: null,
+
+  createProduct: async (productData) => {
+    const { setLoading, setError } = get();
+    
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/stripe/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create product');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('Product created successfully:', result.product);
+        return true;
+      } else {
+        throw new Error('Failed to create product');
+      }
+    } catch (error) {
+      console.error('Error creating product:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create product');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  },
 
   updateProductMetadata: async (id, metadata) => {
     const { setLoading, setError } = get();

@@ -43,6 +43,7 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('name');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<StripeProduct | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -127,6 +128,7 @@ export default function AdminProductsPage() {
   const handleProductSuccess = (message: string) => {
     setSuccessMessage(message);
     setShowEditModal(false);
+    setShowCreateModal(false);
     setEditingProduct(null);
   };
 
@@ -176,6 +178,12 @@ export default function AdminProductsPage() {
               </p>
             </div>
           </div>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+          >
+            Create Product
+          </Button>
         </div>
 
         {/* Alerts */}
@@ -230,6 +238,17 @@ export default function AdminProductsPage() {
         }}
         onSuccess={() => handleProductSuccess('Product updated successfully!')}
         mode="edit"
+      />
+
+      {/* Create Product Modal */}
+      <AdminProductForm
+        product={null}
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+        }}
+        onSuccess={() => handleProductSuccess('Product created successfully!')}
+        mode="add"
       />
     </>
   );
