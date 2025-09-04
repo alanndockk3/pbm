@@ -54,8 +54,14 @@ const convertCheckoutSessionToOrder = (doc: any, userId: string): Order => {
   // Parse order items
   let items: OrderItem[] = [];
   try {
-    if (data.metadata?.orderItems) {
-      items = JSON.parse(data.metadata.orderItems);
+    if (data.metadata?.itemSummary) {
+      const itemSummary = JSON.parse(data.metadata.itemSummary);
+      // Convert item summary back to full order item format
+      items = itemSummary.map((item: any) => ({
+        ...item,
+        image: null, // Image URLs are not stored in metadata to stay under 500 chars
+        id: item.productId
+      }));
     } else if (data.line_items) {
       items = data.line_items.map((item: any, index: number) => ({
         productId: item.price_data?.product_data?.metadata?.product_id || `item_${index}`,
@@ -106,6 +112,27 @@ const convertCheckoutSessionToOrder = (doc: any, userId: string): Order => {
     total: parseFloat(data.metadata?.originalTotal || '0'),
   };
   
+  // Get status from admin updates or default to confirmed
+  const status: OrderStatus = data.orderStatus || 'confirmed';
+  
+  // Build status history - start with confirmed, then add admin updates
+  const statusHistory = [
+    {
+      status: 'confirmed' as OrderStatus,
+      timestamp: createdDate.toISOString(),
+      note: 'Payment confirmed via Stripe'
+    }
+  ];
+  
+  // Add admin status updates if they exist
+  if (data.orderStatus && data.orderStatus !== 'confirmed') {
+    statusHistory.push({
+      status: data.orderStatus,
+      timestamp: data.updated?.toDate ? data.updated.toDate().toISOString() : new Date().toISOString(),
+      note: data.statusNote || `Status updated to ${data.orderStatus}`
+    });
+  }
+  
   return {
     id: doc.id,
     orderNumber,
@@ -124,17 +151,11 @@ const convertCheckoutSessionToOrder = (doc: any, userId: string): Order => {
     paymentMethod: 'Stripe Checkout',
     paymentIntentId: data.sessionId || '',
     
-    status: 'confirmed' as OrderStatus,
-    statusHistory: [
-      {
-        status: 'confirmed' as OrderStatus,
-        timestamp: createdDate.toISOString(),
-        note: 'Payment confirmed via Stripe'
-      }
-    ],
+    status,
+    statusHistory,
     
     createdAt: createdDate.toISOString(),
-    updatedAt: createdDate.toISOString(),
+    updatedAt: data.updated?.toDate ? data.updated.toDate().toISOString() : createdDate.toISOString(),
     
     trackingNumber: data.trackingNumber,
     carrier: data.carrier
@@ -167,7 +188,7 @@ export const useOrderStore = create<OrderState>()(
           console.log(`✅ Loaded ${orders.length} orders from Firebase`);
           
         } catch (error) {
-          console.error('❌ Error loading orders from Firebase:', error);
+          console.error('Error loading orders from Firebase:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to load orders',
             isLoading: false 
@@ -235,7 +256,6 @@ export const useOrderStore = create<OrderState>()(
           orders: [newOrder, ...state.orders]
         }));
         
-        console.log('✅ Local order created:', orderId);
         return orderId;
       },
 
@@ -290,10 +310,9 @@ export const useOrderStore = create<OrderState>()(
             )
           }));
           
-          console.log('✅ Order tracking updated');
           
         } catch (error) {
-          console.error('❌ Error updating order tracking:', error);
+          console.error('Error updating order tracking:', error);
           set({ error: error instanceof Error ? error.message : 'Failed to update tracking' });
         }
       },

@@ -9,6 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { X, Save, Upload, AlertCircle, Image as ImageIcon, Trash2 } from "lucide-react";
 import { useStripeAdminStore } from '../../../lib/admin/useStripeAdminStore';
 import type { StripeProduct } from '../../../lib/product/useProductStore';
+import { doc, updateDoc, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../client/firebaseConfig';
 
 interface AdminProductFormProps {
   product?: StripeProduct | null;
@@ -43,7 +45,8 @@ export function AdminProductForm({
     error, 
     createProduct,
     updateProductMetadata,
-    clearError 
+    clearError,
+    updateProduct
   } = useStripeAdminStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,13 +123,15 @@ export function AdminProductForm({
           throw new Error(`${file.name} is too large. Maximum size is 5MB`);
         }
 
-        // Convert to base64 for preview (in a real app, you'd upload to a storage service)
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-          reader.readAsDataURL(file);
-        });
+                 // Upload to Firebase Storage
+         const { uploadProductImage } = useStripeAdminStore.getState();
+         const imageUrl = await uploadProductImage(file, product?.id);
+        
+        if (!imageUrl) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        return imageUrl;
       });
 
       const uploadedImages = await Promise.all(uploadPromises);
@@ -139,7 +144,6 @@ export function AdminProductForm({
 
     } catch (error) {
       console.error('Error uploading images:', error);
-      // In a real app, you'd show this error to the user
       alert(error instanceof Error ? error.message : 'Failed to upload images');
     } finally {
       setUploading(false);
@@ -174,7 +178,29 @@ export function AdminProductForm({
   };
 
   // Remove image
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const imageToRemove = formData.images[index];
+    
+    // If this is an existing product and the image is from Firebase Storage, delete it
+    if (product?.id && imageToRemove && imageToRemove.includes('firebase')) {
+      try {
+        const { deleteProductImages } = useStripeAdminStore.getState();
+        await deleteProductImages([imageToRemove]);
+        
+        // Also remove from Firestore images array
+        const docRef = doc(db, 'products', product.id);
+        await updateDoc(docRef, {
+          images: arrayRemove(imageToRemove),
+          updated: serverTimestamp(),
+        });
+        console.log('Image removed from product in Firestore');
+      } catch (error) {
+        console.error('Error removing image from product:', error);
+        // Continue with local removal even if Firestore update fails
+      }
+    }
+    
+    // Remove from local state
     setFormData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
@@ -222,17 +248,26 @@ export function AdminProductForm({
       }
     } else if (product) {
       // Edit existing product
-      const updatedMetadata = {
-        ...product.metadata,
+      if (!formData.name || !formData.description || !formData.price) {
+        alert('Name, description, and price are required');
+        return;
+      }
+
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
         category: formData.category,
-        quantity: formData.quantity,
-        rating: formData.rating,
-        reviews: formData.reviews,
-        inStock: formData.inStock.toString(),
-        isFeatured: formData.isFeatured.toString(),
+        quantity: parseInt(formData.quantity) || 0,
+        rating: parseFloat(formData.rating) || 0,
+        reviews: parseInt(formData.reviews) || 0,
+        isFeatured: formData.isFeatured,
+        inStock: formData.inStock,
+        images: formData.images,
       };
 
-      const success = await updateProductMetadata(product.id, updatedMetadata);
+      // Update product in Stripe first (this will trigger webhook to update Firebase)
+      const success = await updateProduct(product.id, productData);
       
       if (success) {
         onSuccess();
@@ -379,15 +414,17 @@ export function AdminProductForm({
                           }}
                         />
                       </div>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                                             <Button
+                         type="button"
+                         variant="destructive"
+                         size="sm"
+                         onClick={() => {
+                           removeImage(index).catch(console.error);
+                         }}
+                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
+                       >
+                         <Trash2 className="w-3 h-3" />
+                       </Button>
                       {index === 0 && (
                         <Badge className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs">
                           Primary

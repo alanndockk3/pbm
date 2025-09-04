@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Package, Truck, Edit2, ExternalLink, Copy } from "lucide-react";
+import { Eye, Package, Truck, Edit2, ExternalLink, Copy, Loader2 } from "lucide-react";
 import { OrderStatusBadge, PaymentStatusBadge } from './OrderStatusBadge';
 import type { AdminOrder } from '../../../../lib/admin/useAdminOrderStore';
 
@@ -11,15 +11,19 @@ interface OrdersTableProps {
   orders: AdminOrder[];
   onViewOrder: (order: AdminOrder) => void;
   onUpdateStatus: (orderId: string, status: AdminOrder['status']) => void;
+  onUpdateTracking?: (orderId: string, trackingNumber: string, carrier?: string) => void;
   loading?: boolean;
+  updatingOrders?: Set<string>;
 }
 
 const TrackingNumberInput = ({ 
   order, 
-  onUpdateTracking 
+  onUpdateTracking,
+  updatingOrders
 }: { 
   order: AdminOrder;
   onUpdateTracking?: (orderId: string, trackingNumber: string, carrier?: string) => void;
+  updatingOrders?: Set<string>;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '');
@@ -45,15 +49,21 @@ const TrackingNumberInput = ({
 
   if (!isEditing && !order.trackingNumber) {
     return (
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setIsEditing(true)}
-        className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-      >
-        <Truck className="w-3 h-3 mr-1" />
-        Add Tracking
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setIsEditing(true)}
+          disabled={updatingOrders?.has(order.id)}
+          className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+        >
+          <Truck className="w-3 h-3 mr-1" />
+          Add Tracking
+        </Button>
+        {updatingOrders?.has(order.id) && (
+          <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+        )}
+      </div>
     );
   }
 
@@ -67,7 +77,8 @@ const TrackingNumberInput = ({
           size="sm"
           variant="ghost"
           onClick={() => copyToClipboard(order.trackingNumber!)}
-          className="p-1 h-6 w-6"
+          disabled={updatingOrders?.has(order.id)}
+          className="p-1 h-6 w-6 disabled:opacity-50"
         >
           <Copy className="w-3 h-3" />
         </Button>
@@ -75,10 +86,14 @@ const TrackingNumberInput = ({
           size="sm"
           variant="ghost"
           onClick={() => setIsEditing(true)}
-          className="p-1 h-6 w-6"
+          disabled={updatingOrders?.has(order.id)}
+          className="p-1 h-6 w-6 disabled:opacity-50"
         >
           <Edit2 className="w-3 h-3" />
         </Button>
+        {updatingOrders?.has(order.id) && (
+          <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+        )}
       </div>
     );
   }
@@ -103,16 +118,24 @@ const TrackingNumberInput = ({
         <Button
           size="sm"
           onClick={handleSave}
-          disabled={!trackingNumber.trim()}
-          className="text-xs bg-green-600 hover:bg-green-700 text-white"
+          disabled={!trackingNumber.trim() || updatingOrders?.has(order.id)}
+          className="text-xs bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
         >
-          Save
+          {updatingOrders?.has(order.id) ? (
+            <>
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save'
+          )}
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={handleCancel}
-          className="text-xs"
+          disabled={updatingOrders?.has(order.id)}
+          className="text-xs disabled:opacity-50"
         >
           Cancel
         </Button>
@@ -121,7 +144,7 @@ const TrackingNumberInput = ({
   );
 };
 
-export function OrdersTable({ orders, onViewOrder, onUpdateStatus, loading = false }: OrdersTableProps) {
+export function OrdersTable({ orders, onViewOrder, onUpdateStatus, onUpdateTracking, loading = false, updatingOrders = new Set() }: OrdersTableProps) {
   if (loading) {
     return (
       <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
@@ -213,11 +236,17 @@ export function OrdersTable({ orders, onViewOrder, onUpdateStatus, loading = fal
                   </td>
                   <td className="p-4">
                     <div className="space-y-2">
-                      <OrderStatusBadge status={order.status} />
+                      <div className="flex items-center gap-2">
+                        <OrderStatusBadge status={order.status} />
+                        {updatingOrders.has(order.id) && (
+                          <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                        )}
+                      </div>
                       <select
                         value={order.status}
                         onChange={(e) => onUpdateStatus(order.id, e.target.value as AdminOrder['status'])}
-                        className="w-full px-2 py-1 text-xs border border-rose-200 dark:border-rose-700 rounded bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        disabled={updatingOrders.has(order.id)}
+                        className="w-full px-2 py-1 text-xs border border-rose-200 dark:border-rose-700 rounded bg-white dark:bg-rose-800 text-rose-900 dark:text-rose-100 focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
@@ -257,10 +286,8 @@ export function OrdersTable({ orders, onViewOrder, onUpdateStatus, loading = fal
                   <td className="p-4">
                     <TrackingNumberInput 
                       order={order}
-                      onUpdateTracking={(orderId, trackingNumber, carrier) => {
-                        // This would be passed down from the parent component
-                        console.log('Update tracking:', { orderId, trackingNumber, carrier });
-                      }}
+                      onUpdateTracking={onUpdateTracking}
+                      updatingOrders={updatingOrders}
                     />
                   </td>
                   <td className="p-4">

@@ -52,6 +52,12 @@ export async function POST(request: NextRequest) {
         await handlePriceUpdated(event.data.object as Stripe.Price);
         break;
       
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+      
+
+      
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -203,3 +209,108 @@ async function handlePriceUpdated(price: Stripe.Price) {
     console.error('Error handling price.updated:', error);
   }
 }
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  try {
+    console.log('Processing completed checkout session:', session.id);
+    
+    // Extract metadata from the session
+    const metadata = session.metadata;
+    if (!metadata || !metadata.userId) {
+      console.error('No user ID found in session metadata');
+      return;
+    }
+
+    const userId = metadata.userId;
+    
+    // Parse order items from metadata
+    let orderItems = [];
+    try {
+      if (metadata.itemSummary) {
+        const itemSummary = JSON.parse(metadata.itemSummary);
+        // Convert item summary back to full order item format
+        orderItems = itemSummary.map((item: any) => ({
+          ...item,
+          image: null, // Image URLs are not stored in metadata to stay under 500 chars
+          id: item.productId
+        }));
+      }
+    } catch (error) {
+      console.error('Error parsing item summary from metadata:', error);
+    }
+
+    // Get shipping address from session - use type assertion for compatibility
+    const shippingAddress = (session as any).shipping || (session as any).shipping_details;
+    if (!shippingAddress) {
+      console.error('No shipping address found in session');
+      return;
+    }
+
+    // Calculate totals from Stripe data (includes automatic tax calculation)
+    const subtotal = (session.amount_subtotal || 0) / 100;
+    const shipping = ((session as any).shipping_cost?.amount_total || 0) / 100;
+    const tax = (session.total_details?.amount_tax || 0) / 100;
+    const total = (session.amount_total || 0) / 100;
+
+    // Create order document
+    const orderData = {
+      id: session.id,
+      customerId: userId,
+      customerEmail: (session as any).customer_details?.email || metadata.customerEmail,
+      customerName: (session as any).customer_details?.name || metadata.customerName,
+      items: orderItems,
+      shippingAddress: {
+        firstName: shippingAddress.name?.split(' ')[0] || metadata.shippingFirstName,
+        lastName: shippingAddress.name?.split(' ').slice(1).join(' ') || metadata.shippingLastName,
+        phone: (session as any).customer_details?.phone || metadata.shippingPhone,
+        address1: shippingAddress.address?.line1 || metadata.shippingAddress1,
+        address2: shippingAddress.address?.line2 || metadata.shippingAddress2,
+        city: shippingAddress.address?.city || metadata.shippingCity,
+        state: shippingAddress.address?.state || metadata.shippingState,
+        zipCode: shippingAddress.address?.postal_code || metadata.shippingZip,
+        country: shippingAddress.address?.country || metadata.shippingCountry,
+      },
+      shippingMethod: metadata.shippingMethod || 'Standard Shipping',
+      estimatedDelivery: metadata.estimatedDeliveryDays || '5-7 days',
+      paymentMethod: 'Stripe Checkout',
+      paymentIntentId: session.payment_intent as string,
+      totals: {
+        subtotal,
+        shipping,
+        tax,
+        total
+      },
+      status: 'pending',
+      orderStatus: 'processing',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      // Store Stripe session data for reference
+      stripeSessionId: session.id,
+      stripeCustomerId: session.customer as string,
+      // Store automatic tax calculation details
+      taxCalculation: {
+        automatic: true,
+        amount: tax,
+        currency: session.currency,
+        taxBreakdown: (session.total_details?.breakdown as any)?.tax_reasons || []
+      }
+    };
+
+    // Create order in user's orders collection
+    const orderRef = doc(db, 'users', userId, 'orders', session.id);
+    await setDoc(orderRef, orderData);
+
+    // Also create in global orders collection for admin access
+    const globalOrderRef = doc(db, 'orders', session.id);
+    await setDoc(globalOrderRef, orderData);
+
+    console.log('Order created successfully from completed checkout session:', session.id);
+    
+    // TODO: Send confirmation email, update inventory, etc.
+    
+  } catch (error) {
+    console.error('Error handling checkout.session.completed:', error);
+  }
+}
+
+

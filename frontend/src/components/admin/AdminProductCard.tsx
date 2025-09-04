@@ -2,6 +2,7 @@
 'use client'
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -37,6 +38,7 @@ export const AdminProductCard = ({
   disabled = false,
   className
 }: AdminProductCardProps) => {
+  const router = useRouter();
   
   // Get safe values for all properties
   const productPrice = getProductPrice(product);
@@ -57,24 +59,16 @@ export const AdminProductCard = ({
   const imageUrl = productImage || '';
 
   const handleCardClick = () => {
-    if (onEdit) {
-      onEdit(product);
-    }
+    // Navigate to product details page instead of opening edit modal
+    router.push(`/admin/products/${product.id}`);
   };
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onEdit) {
-      onEdit(product);
-    }
+    // Navigate to product details page instead of opening edit modal
+    router.push(`/admin/products/${product.id}`);
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete(product);
-    }
-  };
 
   const handleToggleFeatured = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,18 +107,41 @@ export const AdminProductCard = ({
           </div>
         )}
         
-        {/* Clean overlay with single action */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <Button 
-            size="sm" 
-            variant="secondary" 
-            className="bg-white/95 hover:bg-white shadow-lg"
-            onClick={handleEdit}
-            disabled={disabled}
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Manage
-          </Button>
+        {/* Hover overlay with quick actions */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-3 p-4">
+          <div className="text-center mb-2">
+            <h4 className="text-white font-semibold text-sm mb-1">Quick Actions</h4>
+            <p className="text-white/80 text-xs">Quick edits • Click Configure for full details</p>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              className="bg-white/95 hover:bg-white shadow-lg text-xs"
+              onClick={handleToggleFeatured}
+              disabled={disabled}
+              title={isFeatured ? "Remove from featured" : "Add to featured"}
+            >
+              <Star className={cn("w-3 h-3 mr-1", isFeatured ? "text-yellow-600 fill-current" : "text-gray-400")} />
+              {isFeatured ? "Unfeature" : "Feature"}
+            </Button>
+
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              className="bg-white/95 hover:bg-white shadow-lg text-xs"
+              onClick={handleToggleActive}
+              disabled={disabled}
+              title={product.active ? "Deactivate product" : "Activate product"}
+            >
+              <div className={cn(
+                "w-2 h-2 rounded-full mr-1",
+                product.active ? "bg-green-500" : "bg-red-500"
+              )} />
+              {product.active ? "Deactivate" : "Activate"}
+            </Button>
+          </div>
         </div>
 
         {/* Top badges - cleaner layout */}
@@ -149,32 +166,7 @@ export const AdminProductCard = ({
           )}
         </div>
 
-        {/* Quick actions - bottom corner */}
-        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="bg-white/95 hover:bg-white p-2 shadow-lg"
-              onClick={handleToggleFeatured}
-              disabled={disabled}
-              title={isFeatured ? "Remove from featured" : "Add to featured"}
-            >
-              <Star className={cn("w-3 h-3", isFeatured ? "text-yellow-600 fill-current" : "text-gray-400")} />
-            </Button>
 
-            <Button
-              size="sm"
-              variant="secondary"
-              className="bg-white/95 hover:bg-white text-red-600 p-2 shadow-lg"
-              onClick={handleDelete}
-              disabled={disabled}
-              title="Delete product"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
       </div>
       
       {/* Product Info Section - Much cleaner */}
@@ -238,14 +230,14 @@ export const AdminProductCard = ({
           )}
         </div>
 
-        {/* Single action button */}
+        {/* Configure button */}
         <Button
           className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white mt-3"
           onClick={handleEdit}
           disabled={disabled}
         >
-          <Edit className="w-4 h-4 mr-2" />
-          Edit Product
+          <Settings className="w-4 h-4 mr-2" />
+          Configure
         </Button>
       </div>
     </div>

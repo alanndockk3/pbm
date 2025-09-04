@@ -318,11 +318,14 @@ export default function ProductsPage() {
           </select>
         </div>
 
-        {/* Results count */}
-        <div className="mb-6">
+        {/* Results count and info */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <p className="text-rose-600 dark:text-rose-400">
             Showing {filteredProducts.length} of {products.length} products
             {loading && <span className="ml-2 text-pink-500">(updating...)</span>}
+          </p>
+          <p className="text-sm text-rose-500 dark:text-rose-400">
+            💡 Click on any product to view full details
           </p>
         </div>
       </section>
@@ -387,6 +390,7 @@ export default function ProductsPage() {
                   }
                   disabled={addingToCart === product.id || !product.inStock}
                   showQuantity={true}
+                  dashboardMode={false}
                 />
                 
                 {/* Success indicator */}

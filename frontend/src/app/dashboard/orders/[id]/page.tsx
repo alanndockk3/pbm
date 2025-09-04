@@ -141,51 +141,52 @@ export default function OrderDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
       
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl">
         
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex flex-col gap-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => router.push('/dashboard/orders')}
-              className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 self-start"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Orders
-            </Button>
+        <div className="flex flex-col gap-4 mb-6">
+          <Button 
+            variant="ghost" 
+            onClick={() => router.push('/dashboard/orders')}
+            className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 self-start"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Orders
+          </Button>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">
+              <h1 className="text-2xl sm:text-3xl font-bold text-rose-900 dark:text-rose-100">
                 Order #{order.orderNumber}
               </h1>
-              <p className="text-rose-600 dark:text-rose-400">
+              <p className="text-sm sm:text-base text-rose-600 dark:text-rose-400">
                 Placed on {formatDateTime(order.createdAt)} • Confirmation #{order.confirmationNumber}
               </p>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Badge className={statusConfig.color}>
-              <StatusIcon className="w-4 h-4 mr-2" />
-              {statusConfig.label}
-            </Badge>
+            
+            <div className="flex items-center gap-2">
+              <Badge className={statusConfig.color}>
+                <StatusIcon className="w-4 h-4 mr-2" />
+                {statusConfig.label}
+              </Badge>
+            </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           
           {/* Left Column - Order Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6">
             
             {/* Order Status & Timeline */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-xl text-rose-900 dark:text-rose-100">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl text-rose-900 dark:text-rose-100">
                   Order Status
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6">
                 <div className="space-y-4">
                   {order.statusHistory.map((status, index) => {
                     const config = getStatusConfig(status.status);
@@ -194,17 +195,17 @@ export default function OrderDetailPage() {
                     
                     return (
                       <div key={index} className="flex items-start gap-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                           isLast ? config.color : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                         }`}>
                           <Icon className="w-4 h-4" />
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                             <h4 className="font-medium text-rose-900 dark:text-rose-100">
                               {config.label}
                             </h4>
-                            <span className="text-sm text-rose-600 dark:text-rose-400">
+                            <span className="text-xs sm:text-sm text-rose-600 dark:text-rose-400 whitespace-nowrap">
                               {formatDateTime(status.timestamp)}
                             </span>
                           </div>
@@ -221,16 +222,16 @@ export default function OrderDetailPage() {
 
             {/* Order Items */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-xl text-rose-900 dark:text-rose-100">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl text-rose-900 dark:text-rose-100">
                   Order Items ({order.items.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6">
                 <div className="space-y-4">
                   {order.items.map((item, index) => (
-                    <div key={index} className="flex items-center gap-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
-                      <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center">
+                    <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
+                      <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
                         {item.image ? (
                           <img 
                             src={item.image} 
@@ -241,7 +242,7 @@ export default function OrderDetailPage() {
                           <Package className="w-8 h-8 text-pink-600" />
                         )}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 text-center sm:text-left">
                         <h4 className="font-medium text-rose-900 dark:text-rose-100">
                           {item.name}
                         </h4>
@@ -254,7 +255,7 @@ export default function OrderDetailPage() {
                           Quantity: {item.quantity} × ${item.price.toFixed(2)}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-center sm:text-right">
                         <p className="font-bold text-rose-900 dark:text-rose-100">
                           ${(item.price * item.quantity).toFixed(2)}
                         </p>
@@ -267,14 +268,14 @@ export default function OrderDetailPage() {
 
             {/* Shipping Information */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
                   Shipping Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
+              <CardContent className="space-y-4 p-4 sm:p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-medium text-rose-900 dark:text-rose-100 mb-2">
                       Shipping Address
@@ -298,11 +299,11 @@ export default function OrderDetailPage() {
                     </h4>
                     <div className="text-sm text-rose-700 dark:text-rose-300 space-y-1">
                       <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        <span>{order.shippingAddress.email}</span>
+                        <Mail className="w-4 h-4 flex-shrink-0" />
+                        <span className="break-all">{order.shippingAddress.email}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
+                        <Phone className="w-4 h-4 flex-shrink-0" />
                         <span>{order.shippingAddress.phone}</span>
                       </div>
                     </div>
@@ -310,9 +311,9 @@ export default function OrderDetailPage() {
                 </div>
 
                 <div className="border-t border-rose-200 dark:border-rose-700 pt-4">
-                  <div className="flex items-center gap-4">
-                    <Truck className="w-5 h-5 text-rose-600" />
-                    <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <Truck className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                    <div className="flex-1">
                       <p className="font-medium text-rose-900 dark:text-rose-100">
                         {order.shippingMethod}
                       </p>
@@ -324,12 +325,12 @@ export default function OrderDetailPage() {
                   
                   {order.trackingNumber && (
                     <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium text-blue-900 dark:text-blue-100">
                             Tracking Number
                           </p>
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                          <p className="text-sm text-blue-700 dark:text-blue-300 break-all">
                             {order.trackingNumber}
                           </p>
                         </div>
@@ -337,7 +338,7 @@ export default function OrderDetailPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => copyToClipboard(order.trackingNumber!)}
-                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50 flex-shrink-0"
                         >
                           <Copy className="w-4 h-4" />
                         </Button>
@@ -354,12 +355,12 @@ export default function OrderDetailPage() {
             
             {/* Order Summary */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
                   Order Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-4 sm:p-6">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-rose-600 dark:text-rose-400">Subtotal:</span>
@@ -385,12 +386,12 @@ export default function OrderDetailPage() {
 
             {/* Order Details */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
                   Order Details
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-4 sm:p-6">
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-rose-600 dark:text-rose-400">Order Number:</span>
@@ -434,24 +435,51 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
                   
+                  {order.paymentIntentId && (
+                    <div className="flex justify-between">
+                      <span className="text-rose-600 dark:text-rose-400">Payment ID:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-rose-900 dark:text-rose-100 font-mono text-xs">
+                          {order.paymentIntentId.slice(-8)}...
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(order.paymentIntentId!)}
+                          className="p-1 h-auto text-rose-600"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between">
                     <span className="text-rose-600 dark:text-rose-400">Order Date:</span>
                     <span className="text-rose-900 dark:text-rose-100">
                       {formatDate(order.createdAt)}
                     </span>
                   </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-rose-600 dark:text-rose-400">Last Updated:</span>
+                    <span className="text-rose-900 dark:text-rose-100">
+                      {formatDate(order.updatedAt)}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
+
             {/* Quick Actions */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
                   Actions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-4 sm:p-6">
                 <Button
                   variant="outline"
                   className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"

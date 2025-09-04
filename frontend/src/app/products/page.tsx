@@ -105,17 +105,6 @@ export default function PublicProductsPage() {
     router.push('/');
   };
 
-  const handleProductView = (product: StripeProduct) => {
-    // For public page, focus on viewing product details
-    // Could navigate to a product detail page or show in modal
-    console.log('View product details:', product);
-    
-    // If you have a product detail page:
-    // router.push(`/products/${product.id}`);
-    
-    // For now, we'll just log - you can implement product detail modal/page later
-  };
-
   const handleSwitchToSignup = () => {
     setIsLoginOpen(false);
     setIsSignupOpen(true);

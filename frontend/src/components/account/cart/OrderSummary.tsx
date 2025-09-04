@@ -85,12 +85,6 @@ export const OrderSummary = ({
             Proceed to Checkout
           </Button>
 
-          {/* Security Badge */}
-          <div className="flex items-center justify-center gap-2 text-sm text-rose-600 dark:text-rose-400 mt-4">
-            <Shield className="w-4 h-4" />
-            <span>Secure checkout</span>
-          </div>
-
           {/* Continue Shopping */}
           <Button 
             variant="outline"
@@ -99,6 +93,14 @@ export const OrderSummary = ({
           >
             Continue Shopping
           </Button>
+
+          {/* Security Badge */}
+          <div className="flex items-center justify-center gap-2 text-sm text-rose-600 dark:text-rose-400 mt-4">
+            <Shield className="w-4 h-4" />
+            <span>Secure checkout</span>
+          </div>
+
+
         </CardContent>
       </Card>
     </div>

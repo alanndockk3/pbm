@@ -105,11 +105,7 @@ export default function CartPage() {
 
   const handleCheckout = () => {
     console.log('Proceeding to checkout with items:', cartItems);
-    const total = subtotal + shipping + tax;
-    alert(`Checkout with ${totalItems} items totaling $${total.toFixed(2)}`);
-
     router.push('/dashboard/checkout');
-    
   };
 
   // Calculations

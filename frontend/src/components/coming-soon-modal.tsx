@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Clock, Sparkles, Bell, Mail, ArrowRight, CheckCircle } from "lucide-react";
+import { addEmailSubscription } from "../../data/emailSubscriptionService";
 
 interface ComingSoonModalProps {
   isOpen: boolean;
@@ -41,32 +42,45 @@ export const ComingSoonModal: React.FC<ComingSoonModalProps> = ({
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleNotifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
     setIsSubmitting(true);
+    setErrorMessage(''); // Clear any previous errors
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsSubscribed(true);
-    setIsSubmitting(false);
-    
-    // Auto close after showing success
-    setTimeout(() => {
-      handleClose();
-    }, 2000);
+    try {
+      const result = await addEmailSubscription(email, 'coming-soon-modal');
+      
+      if (result.success) {
+        setIsSubscribed(true);
+        // Auto close after showing success
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
+      } else {
+        // Show error message to user
+        setErrorMessage(result.message);
+      }
+    } catch (error) {
+      console.error('Error submitting subscription:', error);
+      setErrorMessage('Failed to subscribe. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
     setEmail('');
     setIsSubscribed(false);
     setIsSubmitting(false);
+    setErrorMessage('');
     onClose();
   };
 
@@ -136,6 +150,14 @@ export const ComingSoonModal: React.FC<ComingSoonModalProps> = ({
                         required
                       />
                     </div>
+                    
+                    {errorMessage && (
+                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                        <p className="text-sm text-red-700 dark:text-red-300">
+                          {errorMessage}
+                        </p>
+                      </div>
+                    )}
                     
                     <Button 
                       type="submit"

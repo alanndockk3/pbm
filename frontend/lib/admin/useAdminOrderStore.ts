@@ -80,14 +80,14 @@ const convertToAdminOrder = (doc: any, customerId: string): AdminOrder => {
   // Parse order items
   let items: AdminOrder['items'] = [];
   try {
-    if (data.metadata?.orderItems) {
-      const parsedItems = JSON.parse(data.metadata.orderItems);
-      items = parsedItems.map((item: any) => ({
+    if (data.metadata?.itemSummary) {
+      const itemSummary = JSON.parse(data.metadata.itemSummary);
+      items = itemSummary.map((item: any) => ({
         id: item.productId || item.id || `item_${Date.now()}`,
         name: item.name || 'Unknown Item',
         quantity: item.quantity || 1,
         price: item.price || 0,
-        image: item.image || ''
+        image: null // Image URLs are not stored in metadata to stay under 500 chars
       }));
     }
   } catch (error) {
@@ -256,7 +256,7 @@ export const useAdminOrderStore = create<AdminOrderState>()(
           
           await updateDoc(orderRef, updateData);
           
-          // Update local state
+          // Update local state immediately for better UX
           set(state => ({
             orders: state.orders.map(order => 
               order.id === orderId 
@@ -269,6 +269,9 @@ export const useAdminOrderStore = create<AdminOrderState>()(
                 : order
             )
           }));
+          
+          // Small delay to ensure local update is processed before real-time listener
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           console.log('Order status updated successfully');
           
@@ -302,7 +305,7 @@ export const useAdminOrderStore = create<AdminOrderState>()(
           
           await updateDoc(orderRef, updateData);
           
-          // Update local state
+          // Update local state immediately for better UX
           set(state => ({
             orders: state.orders.map(order => 
               order.id === orderId 
@@ -315,6 +318,9 @@ export const useAdminOrderStore = create<AdminOrderState>()(
                 : order
             )
           }));
+          
+          // Small delay to ensure local update is processed before real-time listener
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           console.log('Order tracking updated successfully');
           
@@ -361,7 +367,23 @@ export const useAdminOrderStore = create<AdminOrderState>()(
               });
               
               console.log(`Realtime update: ${orders.length} valid orders`);
-              set({ orders, realTimeActive: true, error: null });
+              
+              // Only update if the orders have actually changed to avoid overriding local updates
+              const currentOrders = get().orders;
+              const hasChanged = orders.length !== currentOrders.length || 
+                orders.some((newOrder, index) => {
+                  const currentOrder = currentOrders[index];
+                  return !currentOrder || 
+                    newOrder.status !== currentOrder.status ||
+                    newOrder.trackingNumber !== currentOrder.trackingNumber ||
+                    newOrder.updatedDate.getTime() !== currentOrder.updatedDate.getTime();
+                });
+              
+              if (hasChanged) {
+                set({ orders, realTimeActive: true, error: null });
+              } else {
+                set({ realTimeActive: true, error: null });
+              }
               
             } catch (error) {
               console.error('Error in realtime listener:', error);

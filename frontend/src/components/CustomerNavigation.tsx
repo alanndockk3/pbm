@@ -57,7 +57,7 @@ export function CustomerNavigation() {
     {
       title: "Shopping",
       items: [
-        { path: '/dashboard/products', label: 'Browse Products', icon: ShoppingBag },
+        { path: '/dashboard/products', label: 'Shop Products', icon: ShoppingBag },
         { path: '/dashboard/cart', label: 'Shopping Cart', icon: ShoppingCart, count: cartTotalItems },
         { path: '/dashboard/wishlist', label: 'Wishlist', icon: Heart, count: wishlistCount },
       ]

@@ -15,7 +15,8 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
-  Home
+  Home,
+  Mail
 } from 'lucide-react';
 
 export function AdminNavigation() {
@@ -44,6 +45,7 @@ export function AdminNavigation() {
         { path: '/admin/products', label: 'Products', icon: Package },
         { path: '/admin/orders', label: 'Orders', icon: ShoppingCart },
         { path: '/admin/users', label: 'Users', icon: Users },
+        { path: '/admin/subscriptions', label: 'Email Subscriptions', icon: Mail },
       ]
     },
     {

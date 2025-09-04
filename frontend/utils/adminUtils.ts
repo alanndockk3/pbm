@@ -1,4 +1,4 @@
-// utils/adminUtils.js
+// utils/adminUtils.ts
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../client/firebaseConfig';
 
@@ -22,7 +22,7 @@ export const makeUserAdmin = async (userEmail: string) => {
 /**
  * Make a user admin by their UID
  */
-export const makeUserAdminByUID = async (uid: string) => {
+export const makeUserAdminByUID = async (uid: string): Promise<boolean> => {
   try {
     const userDocRef = doc(db, 'users', uid);
     
@@ -50,7 +50,7 @@ export const makeUserAdminByUID = async (uid: string) => {
 /**
  * Remove admin role from a user
  */
-export const removeAdminRole = async (uid: string) => {
+export const removeAdminRole = async (uid: string): Promise<boolean> => {
   try {
     const userDocRef = doc(db, 'users', uid);
     
@@ -70,7 +70,7 @@ export const removeAdminRole = async (uid: string) => {
 /**
  * Check if a user is admin
  */
-export const isUserAdmin = async (uid: string) => {
+export const isUserAdmin = async (uid: string): Promise<boolean> => {
   try {
     const userDocRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userDocRef);

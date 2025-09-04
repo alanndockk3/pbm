@@ -177,23 +177,21 @@ export default function OrdersPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
       
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex flex-col gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-rose-900 dark:text-rose-100">Your Orders</h1>
-              <p className="text-rose-600 dark:text-rose-400">
-                {orders.length} order{orders.length !== 1 ? 's' : ''} found
-              </p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-rose-900 dark:text-rose-100">Your Orders</h1>
+            <p className="text-sm sm:text-base text-rose-600 dark:text-rose-400">
+              {orders.length} order{orders.length !== 1 ? 's' : ''} found
+            </p>
           </div>
         </div>
 
         {/* Status Filter */}
         <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <Button
               variant={selectedStatus === 'all' ? 'default' : 'outline'}
               size="sm"
@@ -225,12 +223,12 @@ export default function OrdersPage() {
         {/* Orders List */}
         {filteredOrders.length === 0 ? (
           <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-            <CardContent className="p-12 text-center">
-              <Package className="w-16 h-16 text-rose-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-rose-900 dark:text-rose-100 mb-2">
+            <CardContent className="p-6 sm:p-8 lg:p-12 text-center">
+              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-rose-400 mx-auto mb-4" />
+              <h3 className="text-lg sm:text-xl font-semibold text-rose-900 dark:text-rose-100 mb-2">
                 {selectedStatus === 'all' ? 'No orders found' : `No ${selectedStatus} orders`}
               </h3>
-              <p className="text-rose-600 dark:text-rose-400 mb-6">
+              <p className="text-sm sm:text-base text-rose-600 dark:text-rose-400 mb-6 max-w-md mx-auto">
                 {selectedStatus === 'all' 
                   ? "You haven't placed any orders yet. Start shopping to see your orders here!"
                   : `You don't have any orders with ${selectedStatus} status.`
@@ -245,7 +243,7 @@ export default function OrdersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-4 sm:gap-6">
             {filteredOrders.map((order) => {
               const statusConfig = getStatusConfig(order.status);
               const StatusIcon = statusConfig.icon;
@@ -256,31 +254,37 @@ export default function OrdersPage() {
                   className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm cursor-pointer"
                   onClick={() => handleViewOrder(order.id)}
                 >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
+                  <CardHeader className="pb-3 p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center">
-                          <Package className="w-6 h-6 text-pink-600 dark:text-pink-400" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 sm:w-6 sm:h-6 text-pink-600 dark:text-pink-400" />
                         </div>
-                        <div>
-                          <CardTitle className="text-lg text-rose-900 dark:text-rose-100">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base sm:text-lg text-rose-900 dark:text-rose-100 truncate">
                             Order #{order.orderNumber}
                           </CardTitle>
-                          <p className="text-sm text-rose-600 dark:text-rose-400">
+                          <p className="text-xs sm:text-sm text-rose-600 dark:text-rose-400">
                             {formatDateTime(order.createdAt)}
                           </p>
+                          {order.confirmationNumber && (
+                            <p className="text-xs text-rose-500 dark:text-rose-500 font-mono truncate">
+                              Conf: {order.confirmationNumber}
+                            </p>
+                          )}
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-3">
-                        <Badge className={statusConfig.color}>
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
+                        <Badge className={`${statusConfig.color} text-xs`}>
                           <StatusIcon className="w-3 h-3 mr-1" />
-                          {statusConfig.label}
+                          <span className="hidden sm:inline">{statusConfig.label}</span>
+                          <span className="sm:hidden">{statusConfig.label.slice(0, 4)}</span>
                         </Badge>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-pink-600 hover:text-pink-700 p-2"
+                          className="text-pink-600 hover:text-pink-700 p-2 flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewOrder(order.id);
@@ -292,17 +296,17 @@ export default function OrdersPage() {
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <CardContent className="pt-0 p-4 sm:p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       
                       {/* Items Summary */}
-                      <div className="flex items-center gap-3">
-                        <Package className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                        <div>
+                      <div className="flex items-start gap-3">
+                        <Package className="w-4 h-4 text-rose-600 dark:text-rose-400 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-rose-900 dark:text-rose-100">
                             {order.items.length} item{order.items.length !== 1 ? 's' : ''}
                           </p>
-                          <p className="text-xs text-rose-600 dark:text-rose-400">
+                          <p className="text-xs text-rose-600 dark:text-rose-400 truncate">
                             {order.items.length > 1 
                               ? `${order.items[0].name} + ${order.items.length - 1} more`
                               : order.items[0]?.name || 'No items'
@@ -312,26 +316,26 @@ export default function OrdersPage() {
                       </div>
 
                       {/* Shipping Info */}
-                      <div className="flex items-center gap-3">
-                        <MapPin className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                        <div>
-                          <p className="text-sm font-medium text-rose-900 dark:text-rose-100">
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-4 h-4 text-rose-600 dark:text-rose-400 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-rose-900 dark:text-rose-100 truncate">
                             {order.shippingAddress.city}, {order.shippingAddress.state}
                           </p>
-                          <p className="text-xs text-rose-600 dark:text-rose-400">
+                          <p className="text-xs text-rose-600 dark:text-rose-400 truncate">
                             {order.shippingMethod}
                           </p>
                         </div>
                       </div>
 
                       {/* Total and Payment */}
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                        <div>
+                      <div className="flex items-start gap-3 sm:col-span-2 lg:col-span-1">
+                        <CreditCard className="w-4 h-4 text-rose-600 dark:text-rose-400 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-rose-900 dark:text-rose-100">
                             ${order.totals.total.toFixed(2)}
                           </p>
-                          <p className="text-xs text-rose-600 dark:text-rose-400">
+                          <p className="text-xs text-rose-600 dark:text-rose-400 truncate">
                             {order.paymentMethod}
                           </p>
                         </div>
@@ -340,20 +344,44 @@ export default function OrdersPage() {
 
                     {/* Status Description */}
                     <div className="mt-4 pt-4 border-t border-rose-200 dark:border-rose-700">
-                      <div className="flex items-center gap-2">
-                        <StatusIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                        <p className="text-sm text-rose-600 dark:text-rose-400">
-                          {statusConfig.description}
-                        </p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <StatusIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                          <p className="text-sm text-rose-600 dark:text-rose-400">
+                            {statusConfig.description}
+                          </p>
+                        </div>
                         {order.status === 'shipped' && order.estimatedDelivery && (
-                          <>
-                            <span className="text-rose-400">•</span>
-                            <Calendar className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                            <span className="text-xs text-rose-600 dark:text-rose-400">
+                          <div className="flex items-center gap-2 sm:ml-auto">
+                            <span className="text-rose-400 hidden sm:inline">•</span>
+                            <Calendar className="w-3 h-3 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                            <span className="text-xs text-rose-600 dark:text-rose-400 whitespace-nowrap">
                               Est. delivery {formatDate(order.estimatedDelivery)}
                             </span>
-                          </>
+                          </div>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Additional Order Details */}
+                    <div className="mt-3 pt-3 border-t border-rose-100 dark:border-rose-800">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <div className="text-rose-600 dark:text-rose-400">
+                          <span className="font-medium">Subtotal:</span> 
+                          <span className="block sm:inline sm:ml-1">${order.totals.subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="text-rose-600 dark:text-rose-400">
+                          <span className="font-medium">Shipping:</span> 
+                          <span className="block sm:inline sm:ml-1">${order.totals.shipping.toFixed(2)}</span>
+                        </div>
+                        <div className="text-rose-600 dark:text-rose-400">
+                          <span className="font-medium">Tax:</span> 
+                          <span className="block sm:inline sm:ml-1">${order.totals.tax.toFixed(2)}</span>
+                        </div>
+                        <div className="text-rose-900 dark:text-rose-100 font-medium">
+                          <span>Total:</span> 
+                          <span className="block sm:inline sm:ml-1">${order.totals.total.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
                   </CardContent>

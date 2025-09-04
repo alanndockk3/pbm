@@ -1,4 +1,4 @@
-// app/dashboard/checkout/stripe-success/page.tsx
+// app/dashboard/checkout/success/page.tsx
 'use client'
 
 import React, { useEffect, useState } from 'react';
@@ -6,19 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '../../../../../lib/auth/useAuthStore';
 import { useCartStore } from '../../../../../lib/profile/useCartStore';
 import { useOrderActions } from '../../../../../lib/orders/useOrderStore';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '../../../../../client/firebaseConfig';
 import { CheckCircle, Loader2, AlertCircle, Package } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import type { OrderItem, OrderTotals, OrderAddress } from '../../../../../types/order';
 
-interface FirebaseStripeSession {
-  // Basic session info
-  sessionId: string;
+interface StripeSessionData {
+  id: string;
   mode: string;
   customer_email: string;
-  
-  // Line items from Stripe
   line_items: Array<{
     price_data: {
       currency: string;
@@ -33,14 +28,12 @@ interface FirebaseStripeSession {
     };
     quantity: number;
   }>;
-  
-  // Metadata with order information
   metadata: {
     customerEmail: string;
     customerName: string;
     estimatedDeliveryDays: string;
     itemCount: string;
-    orderItems: string; // JSON stringified array
+    itemSummary: string; // JSON stringified array of essential item info
     originalShipping: string;
     originalTax: string;
     originalTotal: string;
@@ -57,8 +50,6 @@ interface FirebaseStripeSession {
     subtotal: string;
     userId: string;
   };
-  
-  // Shipping options
   shipping_options: Array<{
     shipping_rate_data: {
       display_name: string;
@@ -72,25 +63,21 @@ interface FirebaseStripeSession {
       };
     };
   }>;
-  
-  // URLs
   success_url: string;
   cancel_url: string;
   url: string;
-  
-  // Other fields
   allow_promotion_codes: boolean;
   billing_address_collection: string;
   shipping_address_collection: {
     allowed_countries: string[];
   };
-  created: any; // Firestore timestamp
+  created: any;
   client: string;
 }
 
 type ProcessingState = 'loading' | 'processing' | 'success' | 'error';
 
-export default function StripeSuccessPage() {
+export default function SuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
@@ -122,38 +109,62 @@ export default function StripeSuccessPage() {
         console.log('Processing successful payment for session:', sessionId);
         console.log('User ID:', user.uid);
 
-        // Query for the session by sessionId field
-        const sessionsRef = collection(db, 'users', user.uid, 'checkout_sessions');
-        const q = query(sessionsRef, where('sessionId', '==', sessionId), limit(1));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-          throw new Error(`No checkout session found with ID: ${sessionId}`);
+        // Get the Firebase Auth instance and current user to access getIdToken
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        
+        if (!currentUser) {
+          throw new Error('No authenticated user found');
         }
 
-        const sessionDoc = querySnapshot.docs[0];
-        const sessionData = sessionDoc.data() as FirebaseStripeSession;
-        
-        console.log('✅ Session data retrieved:', sessionData);
+        // Get the user's Firebase ID token for authentication
+        const idToken = await currentUser.getIdToken();
+        if (!idToken) {
+          throw new Error('Failed to get authentication token');
+        }
+
+        // Use Stripe API to get session data
+        const response = await fetch(`/api/stripe/sessions/${sessionId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to retrieve session data from Stripe');
+        }
+
+        const sessionData = await response.json();
+        console.log('✅ Stripe session data retrieved:', sessionData);
 
         // Since we're coming from Stripe success URL, assume payment is successful
         // Parse order items from metadata
         let orderItems: OrderItem[] = [];
         
         try {
-          if (sessionData.metadata?.orderItems) {
-            orderItems = JSON.parse(sessionData.metadata.orderItems);
-            console.log('📦 Parsed order items:', orderItems);
+          if (sessionData.metadata?.itemSummary) {
+            const itemSummary = JSON.parse(sessionData.metadata.itemSummary);
+            console.log('📦 Parsed item summary:', itemSummary);
+            
+            // Convert item summary back to full OrderItem format
+            orderItems = itemSummary.map((item: any) => ({
+              ...item,
+              image: null, // Image URLs are not stored in metadata to stay under 500 chars
+              id: item.productId
+            }));
           } else {
-            throw new Error('No orderItems found in metadata');
+            throw new Error('No itemSummary found in metadata');
           }
           
           if (!Array.isArray(orderItems) || orderItems.length === 0) {
             throw new Error('Invalid order items data');
           }
         } catch (parseError) {
-          console.error('Error parsing order items:', parseError);
-          throw new Error('Invalid order items data in session');
+          console.error('Error parsing item summary:', parseError);
+          throw new Error('Invalid item summary data in session');
         }
 
         // Build shipping address from metadata

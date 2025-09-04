@@ -171,7 +171,7 @@ export default function Dashboard() {
   const dashboardStats = {
     orders: orderCount,
     wishlist: wishlistItems.length,
-    reviews: 4.8, // This could be calculated from real review data
+    reviews: 0, // This could be calculated from real review data
     customOrders: userOrders.filter(order => 
       order.items.some(item => item.name.toLowerCase().includes('custom'))
     ).length

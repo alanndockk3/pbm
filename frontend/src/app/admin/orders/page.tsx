@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, RefreshCw, Package, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, Package, AlertTriangle, CheckCircle } from "lucide-react";
 import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { useAdminOrders, useAdminOrderActions, type AdminOrder } from '../../../../lib/admin/useAdminOrderStore';
 import { OrderStats } from '@/components/admin/orders/OrderStats';
@@ -28,6 +28,8 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
+  const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set());
 
   // Auth check
   useEffect(() => {
@@ -81,39 +83,78 @@ export default function AdminOrdersPage() {
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: AdminOrder['status']) => {
     try {
+      // Add order to updating set
+      setUpdatingOrders(prev => new Set(prev).add(orderId));
+      
       const order = orders.find(o => o.id === orderId);
       if (!order) {
         console.error('Order not found:', orderId);
+        setUpdateStatus({ type: 'error', message: 'Order not found' });
         return;
       }
 
+      console.log(`🔄 Updating order ${order.orderNumber} (${orderId}) status from ${order.status} to ${newStatus}`);
+      
       await updateOrderStatus(orderId, order.customerId, newStatus, `Status updated to ${newStatus} by admin`);
       
-      // Show success feedback (you could use a toast library here)
+      // Show success feedback
+      setUpdateStatus({ type: 'success', message: `Order ${order.orderNumber} status updated to ${newStatus}` });
       console.log(`✅ Order ${order.orderNumber} status updated to ${newStatus}`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setUpdateStatus({ type: null, message: '' }), 3000);
       
     } catch (error) {
       console.error('❌ Failed to update order status:', error);
-      // Show error feedback
-      alert('Failed to update order status. Please try again.');
+      setUpdateStatus({ type: 'error', message: 'Failed to update order status. Please try again.' });
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setUpdateStatus({ type: null, message: '' }), 5000);
+    } finally {
+      // Remove order from updating set
+      setUpdatingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
     }
   };
 
   const handleUpdateTracking = async (orderId: string, trackingNumber: string, carrier?: string) => {
     try {
+      // Add order to updating set
+      setUpdatingOrders(prev => new Set(prev).add(orderId));
+      
       const order = orders.find(o => o.id === orderId);
       if (!order) {
         console.error('Order not found:', orderId);
+        setUpdateStatus({ type: 'error', message: 'Order not found' });
         return;
       }
 
+      console.log(`🔄 Updating tracking for order ${order.orderNumber} (${orderId}): ${trackingNumber}${carrier ? ` (${carrier})` : ''}`);
+      
       await updateOrderTracking(orderId, order.customerId, trackingNumber, carrier);
       
+      setUpdateStatus({ type: 'success', message: `Tracking updated for order ${order.orderNumber}` });
       console.log(`✅ Tracking updated for order ${order.orderNumber}`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setUpdateStatus({ type: null, message: '' }), 3000);
       
     } catch (error) {
       console.error('❌ Failed to update tracking:', error);
-      alert('Failed to update tracking information. Please try again.');
+      setUpdateStatus({ type: 'error', message: 'Failed to update tracking information. Please try again.' });
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setUpdateStatus({ type: null, message: '' }), 5000);
+    } finally {
+      // Remove order from updating set
+      setUpdatingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
     }
   };
 
@@ -230,6 +271,51 @@ export default function AdminOrdersPage() {
             </div>
           </div>
 
+          {/* Status Notifications */}
+          {updateStatus.type && (
+            <div className={`mb-6 p-4 border rounded-lg ${
+              updateStatus.type === 'success' 
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            }`}>
+              <div className="flex items-center gap-3">
+                {updateStatus.type === 'success' ? (
+                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                )}
+                <div>
+                  <h3 className={`font-medium ${
+                    updateStatus.type === 'success' 
+                      ? 'text-green-900 dark:text-green-100' 
+                      : 'text-red-900 dark:text-red-100'
+                  }`}>
+                    {updateStatus.type === 'success' ? 'Success' : 'Error'}
+                  </h3>
+                  <p className={`text-sm ${
+                    updateStatus.type === 'success' 
+                      ? 'text-green-700 dark:text-green-300' 
+                      : 'text-red-700 dark:text-red-300'
+                  }`}>
+                    {updateStatus.message}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUpdateStatus({ type: null, message: '' })}
+                  className={`ml-auto ${
+                    updateStatus.type === 'success'
+                      ? 'border-green-300 text-green-700 hover:bg-green-50'
+                      : 'border-red-300 text-red-700 hover:bg-red-50'
+                  }`}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Error Display */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -283,7 +369,9 @@ export default function AdminOrdersPage() {
             orders={filteredOrders}
             onViewOrder={handleViewOrder}
             onUpdateStatus={handleUpdateOrderStatus}
+            onUpdateTracking={handleUpdateTracking}
             loading={loading}
+            updatingOrders={updatingOrders}
           />
         </section>
 
@@ -297,25 +385,6 @@ export default function AdminOrdersPage() {
           }}
           onUpdateTracking={handleUpdateTracking}
         />
-
-        {/* Development Info Panel */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-800/20 rounded-lg border border-gray-200 dark:border-gray-700">
-            <details>
-              <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300 mb-2">
-                🔧 Development Info
-              </summary>
-              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                <p>Total Orders: {orders.length}</p>
-                <p>Filtered Orders: {filteredOrders.length}</p>
-                <p>Realtime Active: {realTimeActive ? '✅' : '❌'}</p>
-                <p>Loading: {loading ? '⏳' : '✅'}</p>
-                <p>Error: {error || 'None'}</p>
-                <p>Database: Firestore collectionGroup(checkout_sessions)</p>
-              </div>
-            </details>
-          </div>
-        )}
       </div>
     </div>
   );
