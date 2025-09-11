@@ -12,7 +12,7 @@ interface OrderState {
   error: string | null;
   
   // Actions
-  loadUserOrdersFromFirebase: (userId: string) => Promise<void>;
+  loadUserOrdersFromAPI: (userId: string) => Promise<void>;
   createLocalOrder: (orderData: Partial<Order>) => Promise<string>; // Keep for testing
   getOrder: (orderId: string) => Order | null;
   updateOrderStatus: (orderId: string, status: OrderStatus, note?: string) => void;
@@ -47,88 +47,114 @@ const generateSecureConfirmationNumber = (userId: string): string => {
   return `${randomPart}${timestamp}${userHash}`;
 };
 
-// Convert Firebase checkout session to Order type
-const convertCheckoutSessionToOrder = (doc: any, userId: string): Order => {
-  const data = doc.data();
+// Fetch product image by productId
+const fetchProductImage = async (productId: string): Promise<string | undefined> => {
+  try {
+    const response = await fetch(`/api/stripe/products/${productId}`);
+    if (response.ok) {
+      const product = await response.json();
+      return product.images?.[0] || product.image || undefined;
+    }
+  } catch (error) {
+    console.warn('Failed to fetch product image for:', productId, error);
+  }
+  return undefined;
+};
+
+// Convert Firebase webhook order to Order type
+const convertWebhookOrderToOrder = async (doc: any, userId: string): Promise<Order> => {
+  const data = typeof doc.data === 'function' ? doc.data() : doc.data;
   
-  // Parse order items
+  // Parse order items (already in correct format from webhook)
   let items: OrderItem[] = [];
   try {
-    if (data.metadata?.itemSummary) {
-      const itemSummary = JSON.parse(data.metadata.itemSummary);
-      // Convert item summary back to full order item format
-      items = itemSummary.map((item: any) => ({
-        ...item,
-        image: null, // Image URLs are not stored in metadata to stay under 500 chars
-        id: item.productId
-      }));
-    } else if (data.line_items) {
-      items = data.line_items.map((item: any, index: number) => ({
-        productId: item.price_data?.product_data?.metadata?.product_id || `item_${index}`,
-        name: item.price_data?.product_data?.name || `Item ${index + 1}`,
-        price: (item.price_data?.unit_amount || 0) / 100,
-        quantity: item.quantity || 1,
-        image: item.price_data?.product_data?.metadata?.image_url || '',
-        category: 'Handmade'
-      }));
+    if (data.items && Array.isArray(data.items)) {
+      // Fetch product images for each item
+      const itemsWithImages = await Promise.all(
+        data.items.map(async (item: any) => {
+          const image = item.image || await fetchProductImage(item.productId || item.id);
+          return {
+            productId: item.productId || item.id,
+            name: item.name || 'Unknown Item',
+            price: item.price || 0,
+            quantity: item.quantity || 1,
+            image,
+            category: item.category || 'Handmade'
+          };
+        })
+      );
+      items = itemsWithImages;
+    } else {
+      // Fallback: create a single item from the order data if no items array
+      if (data.totals && data.totals.subtotal > 0) {
+        const image = await fetchProductImage(doc.id);
+        items = [{
+          productId: doc.id,
+          name: 'Order Item',
+          price: data.totals.subtotal,
+          quantity: 1,
+          image,
+          category: 'Handmade'
+        }];
+      }
     }
   } catch (error) {
     console.error('Error parsing order items:', error);
     items = [];
   }
   
-  // Build shipping address
+  // Build shipping address (already in correct format from webhook)
   const shippingAddress: OrderAddress = {
-    firstName: data.metadata?.shippingFirstName || 'Customer',
-    lastName: data.metadata?.shippingLastName || '',
-    email: data.metadata?.customerEmail || data.customer_email || '',
-    phone: data.metadata?.shippingPhone || '',
-    address1: data.metadata?.shippingAddress1 || '',
-    address2: data.metadata?.shippingAddress2 || '',
-    city: data.metadata?.shippingCity || '',
-    state: data.metadata?.shippingState || '',
-    zipCode: data.metadata?.shippingZip || '',
-    country: data.metadata?.shippingCountry || 'US',
+    firstName: data.shippingAddress?.firstName || 'Customer',
+    lastName: data.shippingAddress?.lastName || '',
+    email: data.shippingAddress?.email || data.customerEmail || '',
+    phone: data.shippingAddress?.phone || '',
+    address1: data.shippingAddress?.address1 || '',
+    address2: data.shippingAddress?.address2 || '',
+    city: data.shippingAddress?.city || '',
+    state: data.shippingAddress?.state || '',
+    zipCode: data.shippingAddress?.zipCode || '',
+    country: data.shippingAddress?.country || 'US',
   };
   
   // Calculate estimated delivery
-  const deliveryDays = data.metadata?.estimatedDeliveryDays 
-    ? parseInt(data.metadata.estimatedDeliveryDays.split('-')[1] || '7')
+  const deliveryDays = data.estimatedDelivery 
+    ? parseInt(data.estimatedDelivery.split('-')[1] || '7')
     : 7;
-  const createdDate = data.created?.toDate ? data.created.toDate() : new Date();
+  const createdDate = data.createdAt ? new Date(data.createdAt) : new Date();
   const estimatedDelivery = new Date(createdDate.getTime() + deliveryDays * 24 * 60 * 60 * 1000).toISOString();
   
   // Generate order number and confirmation
   const timestamp = createdDate.getTime().toString().slice(-6);
-  const sessionShort = data.sessionId?.slice(-4) || '0000';
+  const sessionShort = data.stripeSessionId?.slice(-4) || '0000';
   const orderNumber = `PBM${timestamp}${sessionShort}`;
   const confirmationNumber = data.confirmationNumber || generateSecureConfirmationNumber(userId);
   
-  // Build totals
+  // Build totals (already in correct format from webhook)
   const totals: OrderTotals = {
-    subtotal: parseFloat(data.metadata?.subtotal || '0'),
-    shipping: parseFloat(data.metadata?.originalShipping || '0'),
-    tax: parseFloat(data.metadata?.originalTax || '0'),
-    total: parseFloat(data.metadata?.originalTotal || '0'),
+    subtotal: data.totals?.subtotal || 0,
+    shipping: data.totals?.shipping || 0,
+    tax: data.totals?.tax || 0,
+    total: data.totals?.total || 0,
   };
   
-  // Get status from admin updates or default to confirmed
-  const status: OrderStatus = data.orderStatus || 'confirmed';
+  // Get status from webhook data
+  const status: OrderStatus = data.status || 'pending';
   
-  // Build status history - start with confirmed, then add admin updates
-  const statusHistory = [
+  // Use statusHistory from webhook data if available, otherwise build it
+  let statusHistory = data.statusHistory || [
     {
-      status: 'confirmed' as OrderStatus,
+      status: status as OrderStatus,
       timestamp: createdDate.toISOString(),
-      note: 'Payment confirmed via Stripe'
+      note: 'Order created via Stripe webhook'
     }
   ];
   
-  // Add admin status updates if they exist
-  if (data.orderStatus && data.orderStatus !== 'confirmed') {
+  // If no statusHistory exists but we have orderStatus, add it
+  if (!data.statusHistory && data.orderStatus && data.orderStatus !== status) {
     statusHistory.push({
       status: data.orderStatus,
-      timestamp: data.updated?.toDate ? data.updated.toDate().toISOString() : new Date().toISOString(),
+      timestamp: data.updatedAt || new Date().toISOString(),
       note: data.statusNote || `Status updated to ${data.orderStatus}`
     });
   }
@@ -138,24 +164,24 @@ const convertCheckoutSessionToOrder = (doc: any, userId: string): Order => {
     orderNumber,
     confirmationNumber,
     customerId: userId,
-    customerEmail: data.metadata?.customerEmail || data.customer_email || '',
-    customerName: data.metadata?.customerName || `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
+    customerEmail: data.customerEmail || '',
+    customerName: data.customerName || `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
     
     items,
     totals,
     
     shippingAddress,
-    shippingMethod: data.metadata?.shippingMethod || 'Standard Shipping',
+    shippingMethod: data.shippingMethod || 'Standard Shipping',
     estimatedDelivery,
     
-    paymentMethod: 'Stripe Checkout',
-    paymentIntentId: data.sessionId || '',
+    paymentMethod: data.paymentMethod || 'Stripe Checkout',
+    paymentIntentId: data.paymentIntentId || data.stripeSessionId || '',
     
     status,
     statusHistory,
     
     createdAt: createdDate.toISOString(),
-    updatedAt: data.updated?.toDate ? data.updated.toDate().toISOString() : createdDate.toISOString(),
+    updatedAt: data.updatedAt || createdDate.toISOString(),
     
     trackingNumber: data.trackingNumber,
     carrier: data.carrier
@@ -169,26 +195,31 @@ export const useOrderStore = create<OrderState>()(
       isLoading: false,
       error: null,
 
-      loadUserOrdersFromFirebase: async (userId: string) => {
+      loadUserOrdersFromAPI: async (userId: string) => {
         set({ isLoading: true, error: null });
         
         try {
-          console.log('🔍 Loading orders from Firebase for user:', userId);
           
-          // Query checkout sessions from Firebase
-          const sessionsRef = collection(db, 'users', userId, 'checkout_sessions');
-          const q = query(sessionsRef, orderBy('created', 'desc'));
-          const querySnapshot = await getDocs(q);
+          // Fetch orders from API endpoint (uses Admin SDK with proper permissions)
+          const response = await fetch(`/api/orders?userId=${userId}`);
+          const result = await response.json();
           
-          const orders = querySnapshot.docs
-            .map(doc => convertCheckoutSessionToOrder(doc, userId))
-            .filter(order => order.items.length > 0); // Only include orders with items
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to fetch orders');
+          }
+          
+          
+          // Convert API response to Order objects
+          const orders = await Promise.all(
+            result.orders.map(async (orderData: any) => {
+              return await convertWebhookOrderToOrder({ id: orderData.id, data: orderData }, userId);
+            })
+          );
           
           set({ orders, isLoading: false });
-          console.log(`✅ Loaded ${orders.length} orders from Firebase`);
           
         } catch (error) {
-          console.error('Error loading orders from Firebase:', error);
+          console.error('Error loading orders from API:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to load orders',
             isLoading: false 
@@ -292,12 +323,12 @@ export const useOrderStore = create<OrderState>()(
           if (!order) throw new Error('Order not found');
           
           // Update Firebase if this is a real order (has sessionId)
-          if (order.paymentIntentId && order.paymentIntentId.startsWith('cs_')) {
-            const orderRef = doc(db, 'users', order.customerId, 'checkout_sessions', order.id);
+          if (order.paymentIntentId && (order.paymentIntentId.startsWith('cs_') || order.paymentIntentId.startsWith('pi_'))) {
+            const orderRef = doc(db, 'users', order.customerId, 'orders', order.id);
             await updateDoc(orderRef, {
               trackingNumber,
               carrier: carrier || '',
-              updatedAt: new Date()
+              updatedAt: new Date().toISOString()
             });
           }
           
@@ -325,7 +356,7 @@ export const useOrderStore = create<OrderState>()(
       partialize: (state) => ({
         orders: state.orders.filter(order => 
           // Only persist local/test orders, not Firebase orders
-          !order.paymentIntentId?.startsWith('cs_')
+          !order.paymentIntentId?.startsWith('cs_') && !order.paymentIntentId?.startsWith('pi_')
         )
       })
     }
@@ -343,13 +374,13 @@ export const useOrders = () => {
 };
 
 export const useUserOrders = (userId: string | null) => {
-  const { orders, isLoading, error, loadUserOrdersFromFirebase } = useOrderStore();
+  const { orders, isLoading, error, loadUserOrdersFromAPI } = useOrderStore();
   
   React.useEffect(() => {
     if (userId) {
-      loadUserOrdersFromFirebase(userId);
+      loadUserOrdersFromAPI(userId);
     }
-  }, [userId, loadUserOrdersFromFirebase]);
+  }, [userId, loadUserOrdersFromAPI]);
   
   return { orders, isLoading, error };
 };
@@ -361,6 +392,6 @@ export const useOrderActions = () => {
     getOrder: store.getOrder,
     updateOrderStatus: store.updateOrderStatus,
     updateOrderTracking: store.updateOrderTracking,
-    loadUserOrdersFromFirebase: store.loadUserOrdersFromFirebase
+    loadUserOrdersFromAPI: store.loadUserOrdersFromAPI
   };
 };

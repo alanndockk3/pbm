@@ -18,6 +18,7 @@ import { useProductStore, useProducts } from '../../../../lib/product/useProduct
 import { ProductModal } from '@/components/product/ProductModal';
 import type { Product } from '../../../../types/product';
 import type { StripeProduct } from '../../../../lib/product/useProductStore';
+import { useCartStore } from '../../../../lib/profile/useCartStore';
 
 interface WishlistCardProps {
   onAddToCart?: (itemId: string) => void;
@@ -60,6 +61,7 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
   // Product store
   const { initializeProducts } = useProductStore();
   const allProducts = useProducts();
+  const addToCartAction = useCartStore(state => state.addToCart);
   
   // Get actual product objects from wishlist IDs
   const wishlistItems = useMemo(() => {
@@ -89,21 +91,22 @@ export default function WishlistCard({ onAddToCart, className = "" }: WishlistCa
   };
 
   const handleViewWishlistItem = (itemId: string) => {
-    console.log('Viewing wishlist item:', itemId); // Debug log
-    const product = wishlistItems.find(item => item.id === itemId);
-    console.log('Found product:', product); // Debug log
-    if (product) {
-      setSelectedProduct(product);
-      setIsModalOpen(true);
-      console.log('Modal should open now'); // Debug log
-    }
+    router.push(`/dashboard/products/${itemId}`);
   };
 
   const handleAddToCartClick = (itemId: string, quantity: number = 1) => {
     if (onAddToCart) {
       onAddToCart(itemId);
     } else {
-      console.log('Add to cart:', itemId, 'Quantity:', quantity);
+      if (!user?.uid) {
+        console.log('Add to cart requires login');
+        return;
+        }
+      const product = wishlistItems.find(p => p.id === itemId);
+      if (!product) return;
+      addToCartAction(user.uid, product, quantity).catch(err => {
+        console.error('Add to cart failed:', err);
+      });
     }
   };
 

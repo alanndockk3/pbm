@@ -11,7 +11,12 @@ import {
   Package,
   ShoppingCart,
   User,
-  Loader2
+  Loader2,
+  Home,
+  ChevronRight,
+  ShieldCheck,
+  Truck,
+  Lock
 } from "lucide-react";
 import LandingFooter from '@/components/LandingFooter';
 import { useProductStore, type StripeProduct } from '../../../../lib/product/useProductStore';
@@ -195,27 +200,30 @@ export default function ProductDetailPage() {
         </div>
       </header>
 
-      {/* Breadcrumb Navigation */}
-      <div className="container mx-auto px-4 mb-4">
-        <nav className="flex items-center space-x-2 text-sm">
-          <Link 
-            href="/" 
-            className="text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
-          >
-            Home
-          </Link>
-          <span className="text-rose-400 dark:text-rose-600">/</span>
-          <Link 
-            href="/products" 
-            className="text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
-          >
-            Products
-          </Link>
-          <span className="text-rose-400 dark:text-rose-600">/</span>
-          <span className="text-rose-800 dark:text-rose-200 font-medium truncate max-w-[200px]">
-            {product.name}
-          </span>
-        </nav>
+      {/* Breadcrumb Navigation (aligned to content width) */}
+      <div className="container mx-auto px-4 mb-8">
+        <div className="max-w-7xl mx-auto">
+          <nav className="flex items-center text-sm text-rose-600 dark:text-rose-400">
+            <Link 
+              href="/" 
+              className="inline-flex items-center gap-1 hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              Home
+            </Link>
+            <ChevronRight className="w-4 h-4 mx-2 opacity-60" />
+            <Link 
+              href="/products" 
+              className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
+            >
+              Products
+            </Link>
+            <ChevronRight className="w-4 h-4 mx-2 opacity-60" />
+            <span className="text-rose-900 dark:text-rose-100 font-medium truncate max-w-[200px]">
+              {product.name}
+            </span>
+          </nav>
+        </div>
       </div>
 
       {/* Product Detail Section */}
@@ -262,8 +270,9 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* Product Info */}
-          <div className="space-y-4">
+          {/* Product Info - align to bottom similar to dashboard */}
+          <div className="flex flex-col justify-end">
+            <div className="space-y-4">
             {/* Category and Featured Badge */}
             <div className="flex items-center gap-3">
               <Badge variant="secondary" className="bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
@@ -336,6 +345,22 @@ export default function ProductDetailPage() {
               </p>
             </div>
 
+            {/* Highlights / Trust indicators (no easy returns) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+              <div className="flex items-center gap-2 rounded-lg bg-white/70 dark:bg-rose-900/30 border border-rose-200/70 dark:border-rose-800 px-3 py-2">
+                <ShieldCheck className="w-4 h-4 text-green-600" />
+                <span className="text-xs text-rose-700 dark:text-rose-300">Handmade Quality</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-white/70 dark:bg-rose-900/30 border border-rose-200/70 dark:border-rose-800 px-3 py-2">
+                <Truck className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs text-rose-700 dark:text-rose-300">Ships 3-5 days</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-white/70 dark:bg-rose-900/30 border border-rose-200/70 dark:border-rose-800 px-3 py-2">
+                <Lock className="w-4 h-4 text-pink-600" />
+                <span className="text-xs text-rose-700 dark:text-rose-300">Secure checkout</span>
+              </div>
+            </div>
+
             {/* Action Buttons */}
             <div className="space-y-3 pt-2">
               <div className="flex gap-3">
@@ -379,6 +404,7 @@ export default function ProductDetailPage() {
                   Sign up or log in to add items to your cart and wishlist
                 </p>
               )}
+            </div>
             </div>
           </div>
         </div>

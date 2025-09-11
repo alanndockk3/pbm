@@ -437,17 +437,17 @@ export default function PublicProductsPage() {
         onClose={() => setIsLoginOpen(false)}
         onSwitchToSignup={handleSwitchToSignup}
       />
-      {/* <SignupModal 
+      <SignupModal 
         isOpen={isSignupOpen} 
         onClose={() => setIsSignupOpen(false)}
         onSwitchToLogin={handleSwitchToLogin}
-      /> */}
-      <ComingSoonModal 
+      />
+      {/* <ComingSoonModal 
         isOpen={isSignupOpen} 
         onClose={() => setIsSignupOpen(false)}
         title="New Feature Coming Soon"
         description="We're building an amazing new dashboard experience!"
-      />
+      /> */}
     </div>
   );
 }

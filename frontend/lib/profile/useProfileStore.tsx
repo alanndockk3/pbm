@@ -18,7 +18,7 @@ import {
   getDownloadURL, 
   deleteObject 
 } from 'firebase/storage';
-import { db, storage } from '../../client/firebaseConfig';
+import { auth, db, storage } from '../../client/firebaseConfig';
 
 // Profile data interface
 export interface ProfileData {
@@ -123,6 +123,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const profileRef = getProfileRef(userId);
           const profileSnap = await getDoc(profileRef);
           
@@ -146,7 +150,7 @@ export const useProfileStore = create<ProfileStore>()(
             set({ profile: completeProfile, isLoading: false });
           } else {
             // Create default profile if none exists
-            const defaultProfile = createDefaultProfile('', '');
+            const defaultProfile = createDefaultProfile(currentUser.email || '', currentUser.displayName || '');
             
             // Clean data before saving to Firestore
             const cleanedProfile = cleanDataForFirestore({
@@ -173,6 +177,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');
@@ -219,6 +227,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');
@@ -253,6 +265,10 @@ export const useProfileStore = create<ProfileStore>()(
 
       updateStatistics: async (userId: string, stats: Partial<ProfileData['statistics']>) => {
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) return false;
 
@@ -282,6 +298,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');
@@ -348,6 +368,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');
@@ -405,6 +429,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');
@@ -449,6 +477,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');
@@ -493,6 +525,10 @@ export const useProfileStore = create<ProfileStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser || currentUser.uid !== userId) {
+            throw new Error('Not authorized');
+          }
           const currentProfile = get().profile;
           if (!currentProfile) {
             throw new Error('No profile found');

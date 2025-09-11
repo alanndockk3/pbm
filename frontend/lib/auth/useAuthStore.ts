@@ -5,7 +5,12 @@ import {
   signOut,
   updateProfile,
   onAuthStateChanged,
-  User 
+  User,
+  updateEmail as fbUpdateEmail,
+  updatePassword as fbUpdatePassword,
+  deleteUser as fbDeleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../client/firebaseConfig';
@@ -34,6 +39,9 @@ interface AuthState {
   setUser: (user: ExtendedUser | null) => void;
   initializeAuth: () => void;
   fetchUserRole: (uid: string) => Promise<string | null>;
+  updateEmail: (newEmail: string, currentPassword: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (currentPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -147,8 +155,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         role: 'customer',
         fullName: fullName,
         preferences: {
-          newsletter: true,
-          notifications: true
+          newsletter: false,
+          notifications: false
         }
       } as ExtendedUser;
 
@@ -298,5 +306,81 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user: ExtendedUser | null) => {
     set({ user });
+  },
+
+  updateEmail: async (newEmail: string, currentPassword: string) => {
+    const state = get();
+    const currentUser = auth.currentUser as User | null;
+    if (!currentUser || !state.user?.email) {
+      set({ error: 'Not authenticated' });
+      return;
+    }
+    set({ loading: true, error: null });
+    try {
+      const credential = EmailAuthProvider.credential(state.user.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+      await fbUpdateEmail(currentUser, newEmail);
+
+      // Reflect in Firestore user doc as well
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userDocRef, { email: newEmail, updatedAt: serverTimestamp() }, { merge: true });
+
+      // Update in-memory user
+      set({ user: { ...(state.user as ExtendedUser), email: newEmail } as ExtendedUser, loading: false });
+    } catch (error: any) {
+      console.error('Update email error:', error);
+      let message = 'Failed to update email.';
+      if (error.code === 'auth/requires-recent-login') message = 'Please reauthenticate and try again.';
+      if (error.code === 'auth/email-already-in-use') message = 'Email is already in use.';
+      set({ loading: false, error: message });
+    }
+  },
+  
+  updatePassword: async (currentPassword: string, newPassword: string) => {
+    const state = get();
+    const currentUser = auth.currentUser as User | null;
+    if (!currentUser || !state.user?.email) {
+      set({ error: 'Not authenticated' });
+      return;
+    }
+    set({ loading: true, error: null });
+    try {
+      const credential = EmailAuthProvider.credential(state.user.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+      await fbUpdatePassword(currentUser, newPassword);
+      set({ loading: false });
+    } catch (error: any) {
+      console.error('Update password error:', error);
+      let message = 'Failed to update password.';
+      if (error.code === 'auth/requires-recent-login') message = 'Please reauthenticate and try again.';
+      if (error.code === 'auth/weak-password') message = 'Password should be at least 6 characters.';
+      set({ loading: false, error: message });
+    }
+  },
+
+  deleteAccount: async (currentPassword: string) => {
+    const state = get();
+    const currentUser = auth.currentUser as User | null;
+    if (!currentUser || !state.user?.email) {
+      set({ error: 'Not authenticated' });
+      return;
+    }
+    set({ loading: true, error: null });
+    try {
+      const credential = EmailAuthProvider.credential(state.user.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // Optional: mark user doc as deleted (soft-delete) or remove it
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userDocRef, { deletedAt: serverTimestamp() }, { merge: true });
+
+      await fbDeleteUser(currentUser);
+      set({ user: null, loading: false });
+    } catch (error: any) {
+      console.error('Delete account error:', error);
+      let message = 'Failed to delete account.';
+      if (error.code === 'auth/requires-recent-login') message = 'Please reauthenticate and try again.';
+      set({ loading: false, error: message });
+    }
   },
 }));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { auth } from 'firebase-admin';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin if not already initialized
 if (!getApps().length) {
@@ -68,6 +69,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get or create Stripe customer for the authenticated user
+    const db = getFirestore();
+    const userDocRef = db.collection('users').doc(userId);
+    const userDoc = await userDocRef.get();
+    
+    let stripeCustomerId: string | undefined;
+    
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      stripeCustomerId = userData?.stripeId;
+      
+      // If user doesn't have a Stripe customer ID, create one
+      if (!stripeCustomerId) {
+        console.log('Creating new Stripe customer for user:', userId);
+        
+        const customer = await stripe.customers.create({
+          email: decodedToken.email || customer_email,
+          name: userData?.fullName || userData?.displayName,
+          metadata: {
+            firebaseUID: userId,
+          },
+        });
+        
+        stripeCustomerId = customer.id;
+        
+        // Update user document with Stripe customer ID
+        await userDocRef.update({
+          stripeId: stripeCustomerId,
+          stripeLink: `https://dashboard.stripe.com/customers/${stripeCustomerId}`,
+          updatedAt: new Date().toISOString(),
+        });
+        
+        console.log('Created Stripe customer:', stripeCustomerId);
+      } else {
+        console.log('Using existing Stripe customer:', stripeCustomerId);
+      }
+    } else {
+      // User document doesn't exist, create both user doc and Stripe customer
+      console.log('User document not found, creating user and Stripe customer');
+      
+      const customer = await stripe.customers.create({
+        email: decodedToken.email || customer_email,
+        metadata: {
+          firebaseUID: userId,
+        },
+      });
+      
+      stripeCustomerId = customer.id;
+      
+      // Create user document with Stripe info
+      await userDocRef.set({
+        uid: userId,
+        email: decodedToken.email,
+        stripeId: stripeCustomerId,
+        stripeLink: `https://dashboard.stripe.com/customers/${stripeCustomerId}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      
+      console.log('Created user document and Stripe customer:', stripeCustomerId);
+    }
+
     // Create Stripe checkout session with automatic tax calculation
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -80,9 +143,17 @@ export async function POST(request: NextRequest) {
       
       line_items,
       
+      // Associate with existing Stripe customer
+      customer: stripeCustomerId,
+      
       // Enable automatic tax calculation
       automatic_tax: {
         enabled: true
+      },
+
+      // Enable customer updates to save shipping address for tax calculation
+      customer_update: {
+        shipping: 'auto'
       },
 
       // Add shipping options if provided
@@ -107,13 +178,14 @@ export async function POST(request: NextRequest) {
       success_url: success_url || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancel_url || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard/checkout/cancelled`,
 
-      // Customer email
-      customer_email,
+      // Remove customer_email since we're using customer ID
+      // customer_email is ignored when customer is provided
 
       // Metadata
       metadata: {
         ...metadata,
         userId,
+        stripeCustomerId,
         created_at: new Date().toISOString()
       },
 
@@ -121,14 +193,14 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card', 'link'],
     });
 
-    console.log('Stripe checkout session created:', session.id);
-
-    
+    // console.log('Stripe checkout session created:', session.id);
+    // console.log('Associated with Stripe customer:', stripeCustomerId);
 
     return NextResponse.json({
       success: true,
       sessionId: session.id,
       url: session.url,
+      customerId: stripeCustomerId,
       session
     });
 

@@ -24,10 +24,21 @@ export const OrderCard = ({ order, onViewDetails, isCompact = false }: OrderCard
 
   if (isCompact) {
     return (
-      <div className="flex items-center justify-between p-3 rounded-lg bg-rose-50/50 dark:bg-rose-800/20">
+      <div 
+        className="flex items-center justify-between p-3 rounded-lg bg-rose-50/50 dark:bg-rose-800/20 cursor-pointer hover:bg-rose-100/60 dark:hover:bg-rose-800/40 transition-colors"
+        onClick={handleViewDetails}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-pink-200 to-purple-200 dark:from-pink-700 dark:to-purple-700 rounded-lg flex items-center justify-center">
-            <Package className="w-5 h-5 text-pink-600" />
+          <div className="w-10 h-10 bg-gradient-to-br from-pink-200 to-purple-200 dark:from-pink-700 dark:to-purple-700 rounded-lg flex items-center justify-center overflow-hidden">
+            {order.items[0]?.image ? (
+              <img 
+                src={order.items[0].image} 
+                alt={order.items[0].name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Package className="w-5 h-5 text-pink-600" />
+            )}
           </div>
           <div>
             <p className="font-medium text-rose-900 dark:text-rose-100">

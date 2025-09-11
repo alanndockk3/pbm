@@ -12,6 +12,7 @@ import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../..
 import { useProductStore, useProducts } from '../../../../lib/product/useProductStore';
 import type { Product } from '../../../../types/product';
 import type { StripeProduct } from '../../../../lib/product/useProductStore';
+import { useCartStore } from '../../../../lib/profile/useCartStore';
 
 interface WishlistProps {
   items?: Product[]; // Optional override for items
@@ -63,6 +64,7 @@ export default function Wishlist({
   // Product store
   const { initializeProducts } = useProductStore();
   const allProducts = useProducts();
+  const addToCartAction = useCartStore(state => state.addToCart);
   
   // Get actual product objects from wishlist IDs (only if items not provided)
   const wishlistItems = useMemo(() => {
@@ -103,7 +105,15 @@ export default function Wishlist({
     if (onAddToCart) {
       onAddToCart(itemId, quantity);
     } else {
-      console.log('Add to cart:', itemId, 'quantity:', quantity);
+      if (!user?.uid) {
+        console.log('Add to cart requires login');
+        return;
+      }
+      const product = wishlistItems.find(p => p.id === itemId);
+      if (!product) return;
+      addToCartAction(user.uid, product, quantity).catch(err => {
+        console.error('Add to cart failed:', err);
+      });
     }
   };
 
@@ -185,6 +195,7 @@ export default function Wishlist({
               onPurchaseClick={() => handleProductAction(item)}
               purchaseButtonText="Add to Cart"
               showQuantity={true}
+              dashboardMode={true}
               className="relative group"
             />
           ))}

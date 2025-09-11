@@ -86,26 +86,15 @@ export default function ProductsPage() {
   const filteredProducts = getFilteredProducts();
 
   const handleProductAction = async (product: any) => {
-    console.log('🛒 handleProductAction called with product:', product);
-    console.log('🛒 Product structure:', {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      images: product.images,
-      inStock: product.inStock,
-      category: product.category,
-      description: product.description
-    });
     
     if (!user?.uid) {
-      console.log('❌ User must be logged in to add to cart');
+      console.log('User must be logged in to add to cart');
       router.push('/auth');
       return;
     }
 
     if (!product.inStock) {
-      console.log('❌ Product is out of stock');
+      console.log('Product is out of stock');
       return;
     }
 
@@ -126,23 +115,16 @@ export default function ProductsPage() {
         quantity: 1
       };
       
-      console.log('🛒 Converted cart product:', cartProduct);
-      console.log('🛒 About to call addToCart with:', {
-        userId: user.uid,
-        product: cartProduct,
-        quantity: 1
-      });
-      
       await addToCart(user.uid, cartProduct, 1);
       
-      console.log('✅ Product added to cart successfully!', product.name);
+  
       
       // Show success feedback
       setRecentlyAdded(product.id);
       setTimeout(() => setRecentlyAdded(null), 2000);
       
     } catch (error) {
-      console.error('❌ Failed to add to cart:', error);
+      console.error('Failed to add to cart:', error);
       
       // Show user-friendly error
       alert('Failed to add item to cart. Please try again.');
@@ -324,9 +306,6 @@ export default function ProductsPage() {
             Showing {filteredProducts.length} of {products.length} products
             {loading && <span className="ml-2 text-pink-500">(updating...)</span>}
           </p>
-          <p className="text-sm text-rose-500 dark:text-rose-400">
-            💡 Click on any product to view full details
-          </p>
         </div>
       </section>
 
@@ -390,7 +369,7 @@ export default function ProductsPage() {
                   }
                   disabled={addingToCart === product.id || !product.inStock}
                   showQuantity={true}
-                  dashboardMode={false}
+                  dashboardMode={true}
                 />
                 
                 {/* Success indicator */}

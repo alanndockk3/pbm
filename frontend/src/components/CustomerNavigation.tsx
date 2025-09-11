@@ -71,7 +71,7 @@ export function CustomerNavigation() {
     {
       title: "Account",
       items: [
-        { path: '/dashboard/profile', label: 'Account Settings', icon: Settings },
+        { path: '/dashboard/account-settings', label: 'Account Settings', icon: Settings },
       ]
     }
   ];

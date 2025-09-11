@@ -257,8 +257,16 @@ export default function OrdersPage() {
                   <CardHeader className="pb-3 p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Package className="w-5 h-5 sm:w-6 sm:h-6 text-pink-600 dark:text-pink-400" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {order.items[0]?.image ? (
+                            <img 
+                              src={order.items[0].image} 
+                              alt={order.items[0].name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-pink-600 dark:text-pink-400" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <CardTitle className="text-base sm:text-lg text-rose-900 dark:text-rose-100 truncate">

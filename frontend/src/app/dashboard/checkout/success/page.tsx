@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '../../../../../lib/auth/useAuthStore';
 import { useCartStore } from '../../../../../lib/profile/useCartStore';
-import { useOrderActions } from '../../../../../lib/orders/useOrderStore';
 import { CheckCircle, Loader2, AlertCircle, Package } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import type { OrderItem, OrderTotals, OrderAddress } from '../../../../../types/order';
@@ -82,11 +81,10 @@ export default function SuccessPage() {
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const { clearCart } = useCartStore();
-  const { createOrder } = useOrderActions();
   
   const [processingState, setProcessingState] = useState<ProcessingState>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [createdOrderId, setCreatedOrderId] = useState<string>('');
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleSuccessfulPayment = async () => {
@@ -106,8 +104,6 @@ export default function SuccessPage() {
 
       try {
         setProcessingState('processing');
-        console.log('Processing successful payment for session:', sessionId);
-        console.log('User ID:', user.uid);
 
         // Get the Firebase Auth instance and current user to access getIdToken
         const { getAuth } = await import('firebase/auth');
@@ -138,7 +134,6 @@ export default function SuccessPage() {
         }
 
         const sessionData = await response.json();
-        console.log('✅ Stripe session data retrieved:', sessionData);
 
         // Since we're coming from Stripe success URL, assume payment is successful
         // Parse order items from metadata
@@ -147,7 +142,6 @@ export default function SuccessPage() {
         try {
           if (sessionData.metadata?.itemSummary) {
             const itemSummary = JSON.parse(sessionData.metadata.itemSummary);
-            console.log('📦 Parsed item summary:', itemSummary);
             
             // Convert item summary back to full OrderItem format
             orderItems = itemSummary.map((item: any) => ({
@@ -195,39 +189,18 @@ export default function SuccessPage() {
           : 7;
         const estimatedDelivery = new Date(Date.now() + deliveryDays * 24 * 60 * 60 * 1000).toISOString();
 
-        console.log('🛍️ Creating order with data:', {
-          orderItems: orderItems.length,
-          shippingAddress,
-          totals,
-          customerName: sessionData.metadata.customerName
-        });
 
-        // Create order with local store
-        const orderId = await createOrder({
-          customerId: user.uid,
-          customerEmail: shippingAddress.email,
-          customerName: sessionData.metadata.customerName || `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
-          items: orderItems,
-          shippingAddress,
-          shippingMethod: sessionData.metadata.shippingMethod || 'Standard Shipping',
-          estimatedDelivery,
-          paymentMethod: 'Stripe Checkout',
-          paymentIntentId: sessionId,
-          totals,
-        });
-
-        console.log('✅ Order created successfully:', orderId);
-        setCreatedOrderId(orderId);
-
-        // Clear cart after successful order creation
+        // Clear cart after successful payment
         await clearCart(user.uid);
-        console.log('🛒 Cart cleared');
 
+        // The webhook will create the order automatically
+        // We'll redirect to the orders page to see the new order
+        setCreatedOrderId(sessionId);
         setProcessingState('success');
         
         // Delay before redirecting to show success state
         setTimeout(() => {
-          router.push(`/dashboard/orders/${orderId}`);
+          router.push('/dashboard/orders');
         }, 2500);
 
       } catch (error) {
@@ -247,7 +220,7 @@ export default function SuccessPage() {
       setErrorMessage('Invalid session - no session ID found');
       setProcessingState('error');
     }
-  }, [searchParams, user?.uid, createOrder, clearCart, router]);
+  }, [searchParams, user?.uid, clearCart, router]);
 
   const getStateIcon = () => {
     switch (processingState) {

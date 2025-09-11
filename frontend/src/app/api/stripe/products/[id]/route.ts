@@ -2,10 +2,81 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { requireAdmin } from '../../../../../lib/auth/verifyAuth';
 import { adminRateLimit } from '../../../../../lib/middleware/rateLimit';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-06-30.basil',
 });
+
+// Initialize Firebase Admin if not already initialized
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID!,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: productId } = await params;
+    
+    // Try to get product from Firebase first (faster)
+    const db = getFirestore();
+    const productDoc = await db.collection('products').doc(productId).get();
+    
+    if (productDoc.exists) {
+      const productData = productDoc.data();
+      return NextResponse.json({
+        success: true,
+        ...productData
+      });
+    }
+    
+    // Fallback to Stripe if not found in Firebase
+    const product = await stripe.products.retrieve(productId, {
+      expand: ['default_price']
+    });
+    
+    return NextResponse.json({
+      success: true,
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      active: product.active,
+      images: product.images,
+      metadata: product.metadata,
+      category: product.metadata?.category || '',
+      quantity: parseInt(product.metadata?.quantity || '0'),
+      rating: parseFloat(product.metadata?.rating || '0'),
+      reviews: parseInt(product.metadata?.reviews || '0'),
+      inStock: product.metadata?.inStock !== 'false',
+      isFeatured: product.metadata?.isFeatured === 'true',
+      price: product.default_price ? (product.default_price as any).unit_amount / 100 : 0,
+    });
+    
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    
+    if (error instanceof Stripe.errors.StripeError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Product not found' },
+      { status: 404 }
+    );
+  }
+}
 
 export async function PUT(
   request: NextRequest,

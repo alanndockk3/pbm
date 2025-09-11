@@ -22,6 +22,7 @@ import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { useWishlistStore, useWishlistItems, useWishlistLoading } from '../../../../lib/profile/useWishListStore';
 import { useProductStore, useProducts } from '../../../../lib/product/useProductStore';
 import type { Product } from '../../../../types/product';
+import { useCartStore } from '../../../../lib/profile/useCartStore';
 
 export default function WishlistPage() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function WishlistPage() {
   // Product store
   const { initializeProducts } = useProductStore();
   const allProducts = useProducts();
+  const addToCartAction = useCartStore(state => state.addToCart);
   
   // Memoize wishlistItems to prevent infinite re-renders
   const wishlistItems = useMemo(() => {
@@ -112,9 +114,12 @@ export default function WishlistPage() {
   };
 
   const handleAddToCart = (itemId: string) => {
-    console.log('Add to cart:', itemId);
-    // Add to cart logic here
-    // You might want to show a success toast
+    if (!user?.uid) return;
+    const product = allProducts.find(p => p.id === itemId);
+    if (!product) return;
+    addToCartAction(user.uid, product, 1).catch(err => {
+      console.error('Add to cart failed:', err);
+    });
   };
 
   const handleRemoveFromWishlist = async (itemId: string) => {
@@ -163,10 +168,10 @@ export default function WishlistPage() {
     const selectedProducts = filteredItems.filter(item => 
       selectedItems.includes(item.id) && item.inStock
     );
+    if (!user?.uid) return;
     selectedProducts.forEach(product => {
-      console.log('Add to cart:', product.id);
+      addToCartAction(user.uid!, product, 1).catch(err => console.error('Add selected to cart failed:', err));
     });
-    // Add to cart logic for selected items
     setSelectedItems([]);
   };
 

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Footer from '@/components/footer';
+import { NotificationContainer } from '@/components/notifications/NotificationContainer';
+import { useNotifications } from '../../../../lib/notifications/useNotifications';
 import { 
   Heart, 
   User, 
@@ -20,7 +22,9 @@ import {
   Sparkles,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  ChevronDown
 } from "lucide-react";
 import { useAuthStore } from '../../../../lib/auth/useAuthStore';
 import { 
@@ -33,7 +37,8 @@ import {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, updateEmail: updateEmailAuth, updatePassword: updatePasswordAuth, deleteAccount: deleteAccountAuth, error: authError, clearError } = useAuthStore();
+  const { showSuccess: notifySuccess, showError: notifyError } = useNotifications();
   const profile = useProfile();
   const isLoading = useProfileLoading();
   const error = useProfileError();
@@ -49,6 +54,15 @@ export default function ProfilePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [securityMessage, setSecurityMessage] = useState<string | null>(null);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [emailForm, setEmailForm] = useState({ newEmail: '', currentPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [openSection, setOpenSection] = useState<'personal' | 'preferences' | 'security' | null>('personal');
+
+  const toggleSection = (section: 'personal' | 'preferences' | 'security') => {
+    setOpenSection(prev => (prev === section ? null : section));
+  };
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
@@ -134,12 +148,16 @@ export default function ProfilePage() {
       if (success) {
         setIsEditing(false);
         setShowSuccess(true);
+        notifySuccess('Profile updated successfully');
         
         // Hide success message after 3 seconds
         setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        notifyError('Failed to update profile');
       }
     } catch (err) {
       console.error('Failed to save profile:', err);
+      notifyError('Failed to update profile');
     }
   };
 
@@ -174,6 +192,59 @@ export default function ProfilePage() {
     }
   };
 
+  const handleUpdateEmail = async () => {
+    if (!emailForm.newEmail || !emailForm.currentPassword) {
+      setSecurityMessage('Please enter new email and your current password.');
+      return;
+    }
+    setSecurityLoading(true);
+    setSecurityMessage(null);
+    await updateEmailAuth(emailForm.newEmail, emailForm.currentPassword);
+    setSecurityLoading(false);
+    if (!authError) {
+      setSecurityMessage('Email updated successfully.');
+      setEmailForm({ newEmail: '', currentPassword: '' });
+      notifySuccess('Email updated successfully');
+    } else {
+      notifyError(authError || 'Failed to update email');
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      setSecurityMessage('Please enter current and new password.');
+      return;
+    }
+    setSecurityLoading(true);
+    setSecurityMessage(null);
+    await updatePasswordAuth(passwordForm.currentPassword, passwordForm.newPassword);
+    setSecurityLoading(false);
+    if (!authError) {
+      setSecurityMessage('Password updated successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '' });
+      notifySuccess('Password updated successfully');
+    } else {
+      notifyError(authError || 'Failed to update password');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!passwordForm.currentPassword) {
+      setSecurityMessage('Enter your current password to delete your account.');
+      return;
+    }
+    const confirmed = window.confirm('This will permanently delete your account. Continue?');
+    if (!confirmed) return;
+    setSecurityLoading(true);
+    setSecurityMessage(null);
+    await deleteAccountAuth(passwordForm.currentPassword);
+    setSecurityLoading(false);
+    if (!authError) {
+      setSecurityMessage('Account deleted. Redirecting...');
+      notifySuccess('Account deleted');
+    }
+  };
+
   // Show loading state
   if (isLoading && !profile) {
     return (
@@ -188,6 +259,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
+      <NotificationContainer />
       {/* Header */}
       <header className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
@@ -243,14 +315,14 @@ export default function ProfilePage() {
         )}
 
         {/* Error Message */}
-        {error && (
+        {(error || authError) && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <span className="text-red-800 dark:text-red-200">{error}</span>
+            <span className="text-red-800 dark:text-red-200">{error || authError}</span>
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => setError(null)}
+              onClick={() => { setError(null); clearError(); }}
               className="ml-auto text-red-600 hover:text-red-800"
             >
               <X className="w-4 h-4" />
@@ -306,27 +378,13 @@ export default function ProfilePage() {
                 <h2 className="text-2xl font-bold text-rose-900 dark:text-rose-100 mb-2">
                   {formData.displayName || 'Beautiful Soul'}
                 </h2>
-                <p className="text-rose-600 dark:text-rose-400 mb-4">
+                <p className="text-rose-600 dark:text-rose-400">
                   Member since {statistics?.memberSince ? new Date(statistics.memberSince).getFullYear() : new Date().getFullYear()}
                 </p>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-                      {statistics?.totalOrders || 0}
-                    </div>
-                    <div className="text-sm text-rose-600 dark:text-rose-400">Orders</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">
-                      {statistics?.wishlistCount || 0}
-                    </div>
-                    <div className="text-sm text-rose-600 dark:text-rose-400">Wishlist</div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
+
+            {/* Security moved to right column */}
           </div>
 
           {/* Profile Details */}
@@ -334,15 +392,21 @@ export default function ProfilePage() {
             
             {/* Personal Information */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Personal Information
-                </CardTitle>
-                <CardDescription className="text-rose-700 dark:text-rose-300">
-                  Your basic profile information
-                </CardDescription>
+              <CardHeader className="cursor-pointer" onClick={() => setOpenSection(prev => prev === 'personal' ? null : 'personal')}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                      <User className="w-5 h-5" />
+                      Personal Information
+                    </CardTitle>
+                    <CardDescription className="text-rose-700 dark:text-rose-300">
+                      Your basic profile information
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 transition-transform ${openSection === 'personal' ? 'rotate-180' : ''}`} />
+                </div>
               </CardHeader>
+              {openSection === 'personal' && (
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -443,19 +507,141 @@ export default function ProfilePage() {
                   )}
                 </div>
               </CardContent>
+              )}
+            </Card>
+
+            {/* Security */}
+            <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+              <CardHeader className="cursor-pointer" onClick={() => setOpenSection(prev => prev === 'security' ? null : 'security')}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                      <Shield className="w-5 h-5" />
+                      Security
+                    </CardTitle>
+                    <CardDescription className="text-rose-700 dark:text-rose-300">
+                      Update your email, password, or delete your account
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 transition-transform ${openSection === 'security' ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+              {openSection === 'security' && (
+              <CardContent className="space-y-6">
+                {securityMessage && (
+                  <div className="p-3 rounded-md bg-rose-50 dark:bg-rose-800/30 text-rose-900 dark:text-rose-100">
+                    {securityMessage}
+                  </div>
+                )}
+
+                {/* Change Email - temporarily disabled */}
+                <div className="grid md:grid-cols-2 gap-4 opacity-60">
+                  <div>
+                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">New Email</label>
+                    <input
+                      type="email"
+                      value={emailForm.newEmail}
+                      onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
+                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none"
+                      placeholder={user?.email || 'you@example.com'}
+                      disabled
+                      title="Email update is under construction"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">Current Password</label>
+                    <input
+                      type="password"
+                      value={emailForm.currentPassword}
+                      onChange={(e) => setEmailForm({ ...emailForm, currentPassword: e.target.value })}
+                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none"
+                      placeholder="Enter current password"
+                      disabled
+                      title="Email update is under construction"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Button disabled title="Under construction" className="bg-gradient-to-r from-pink-500 to-purple-600 text-white cursor-not-allowed">
+                    Update Email (coming soon)
+                  </Button>
+                </div>
+
+                <hr className="border-rose-200 dark:border-rose-800" />
+
+                {/* Change Password */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">Current Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      placeholder="Enter current password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">New Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      placeholder="Enter new password"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button onClick={handleUpdatePassword} disabled={securityLoading} className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
+                    {securityLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Update Password
+                  </Button>
+                </div>
+
+                <hr className="border-rose-200 dark:border-rose-800" />
+
+                {/* Delete Account */}
+                <div className="space-y-3">
+                  <p className="text-sm text-rose-700 dark:text-rose-300">To delete your account, enter your current password and confirm.</p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-rose-900 dark:text-rose-100 mb-2">Current Password</label>
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        className="w-full px-3 py-2 border border-rose-200 dark:border-rose-700 rounded-lg bg-white/50 dark:bg-rose-800/50 text-rose-900 dark:text-rose-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        placeholder="Enter current password"
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleDeleteAccount} disabled={securityLoading} variant="destructive" className="bg-red-600 hover:bg-red-700 text-white">
+                    {securityLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Delete Account
+                  </Button>
+                </div>
+              </CardContent>
+              )}
             </Card>
 
             {/* Preferences */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
-                  <Heart className="w-5 h-5" />
-                  Preferences
-                </CardTitle>
-                <CardDescription className="text-rose-700 dark:text-rose-300">
-                  Manage your communication preferences
-                </CardDescription>
+              <CardHeader className="cursor-pointer" onClick={() => setOpenSection(prev => prev === 'preferences' ? null : 'preferences')}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl text-rose-900 dark:text-rose-100 flex items-center gap-2">
+                      <Heart className="w-5 h-5" />
+                      Preferences
+                    </CardTitle>
+                    <CardDescription className="text-rose-700 dark:text-rose-300">
+                      Manage your communication preferences
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 transition-transform ${openSection === 'preferences' ? 'rotate-180' : ''}`} />
+                </div>
               </CardHeader>
+              {openSection === 'preferences' && (
               <CardContent className="space-y-4">
                 {Object.entries(formData.preferences).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between p-3 bg-rose-50/50 dark:bg-rose-800/20 rounded-lg">
@@ -487,6 +673,7 @@ export default function ProfilePage() {
                   </div>
                 ))}
               </CardContent>
+              )}
             </Card>
           </div>
         </div>

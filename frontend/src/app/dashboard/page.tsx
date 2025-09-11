@@ -10,6 +10,7 @@ import Footer from '@/components/footer';
 import Wishlist from '@/components/account/wishlist/Wishlist';
 import { ProductModal } from '@/components/product/ProductModal'; // Changed import
 import { OrderCard } from '@/components/account/orders/OrderCard';
+import { ComingSoonModal } from '@/components/coming-soon-modal';
 import { 
   Heart, 
   Sparkles, 
@@ -28,6 +29,7 @@ import { useProductStore, useProducts } from '../../../lib/product/useProductSto
 import { useUserOrders, useOrderActions } from '../../../lib/orders/useOrderStore';
 import type { Product } from '../../../types/product';
 import type { StripeProduct } from '../../../lib/product/useProductStore';
+import { useCartStore } from '../../../lib/profile/useCartStore';
 
 // Helper function to convert Product to StripeProduct format
 const convertToStripeProduct = (product: Product): StripeProduct => {
@@ -58,6 +60,9 @@ export default function Dashboard() {
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
+  const [comingSoonTitle, setComingSoonTitle] = useState<string>('Coming Soon');
+  const [comingSoonDescription, setComingSoonDescription] = useState<string>("We're working hard to bring you something amazing. Stay tuned!");
 
   // Wishlist and product stores
   const { loadWishlist, removeFromWishlist, subscribeToWishlist, toggleWishlist } = useWishlistStore();
@@ -65,6 +70,7 @@ export default function Dashboard() {
   const wishlistLoading = useWishlistLoading();
   const { initializeProducts } = useProductStore();
   const allProducts = useProducts();
+  const addToCartAction = useCartStore(state => state.addToCart);
   
   // Order store - using your existing implementation
   const { orders: userOrders, isLoading: ordersLoading, error: ordersError } = useUserOrders(user?.uid || null);
@@ -108,17 +114,16 @@ export default function Dashboard() {
 
   // Wishlist handlers with modal logic
   const handleViewWishlistItem = (itemId: string) => {
-    console.log('View wishlist item:', itemId);
-    const product = wishlistItems.find(item => item.id === itemId);
-    if (product) {
-      setSelectedProduct(product);
-      setIsModalOpen(true);
-    }
+    router.push(`/dashboard/products/${itemId}`);
   };
 
   const handleAddToCart = (itemId: string, quantity: number = 1) => {
-    console.log('Add to cart:', itemId, 'Quantity:', quantity);
-    // Add item to cart logic here
+    if (!user?.uid) return;
+    const product = allProducts.find(p => p.id === itemId);
+    if (!product) return;
+    addToCartAction(user.uid, product, quantity).catch(err => {
+      console.error('Add to cart failed:', err);
+    });
   };
 
   const handleRemoveFromWishlist = async (itemId: string) => {
@@ -341,6 +346,11 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+                onClick={() => {
+                  setComingSoonTitle('Custom Order');
+                  setComingSoonDescription('Custom orders are almost here. Tell us your vision and get notified when this launches.');
+                  setIsComingSoonOpen(true);
+                }}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Custom Order
@@ -348,6 +358,11 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="w-full justify-start border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300"
+                onClick={() => {
+                  setComingSoonTitle('Gift Cards');
+                  setComingSoonDescription('Digital gift cards are coming soon. Get notified when they are available.');
+                  setIsComingSoonOpen(true);
+                }}
               >
                 <Gift className="w-4 h-4 mr-2" />
                 Gift Cards
@@ -357,7 +372,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Account Management */}
+      {/* Account Management
       <section className="container mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold text-rose-900 dark:text-rose-100 mb-6">Account Management</h2>
         
@@ -388,7 +403,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </section>
+      </section> */}
 
       <Footer />
 
@@ -409,6 +424,15 @@ export default function Dashboard() {
           isInWishlist={true} // Always true since this comes from wishlist
         />
       )}
+
+      {/* Coming Soon Modal for Quick Actions */}
+      <ComingSoonModal 
+        isOpen={isComingSoonOpen}
+        onClose={() => setIsComingSoonOpen(false)}
+        title={comingSoonTitle}
+        description={comingSoonDescription}
+        showNotifyMe={true}
+      />
     </div>
   );
 }

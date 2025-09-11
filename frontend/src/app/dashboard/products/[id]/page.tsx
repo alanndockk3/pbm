@@ -9,7 +9,12 @@ import {
   Star,
   Package,
   ShoppingCart,
-  Loader2
+  Loader2,
+  Home,
+  ChevronRight,
+  ShieldCheck,
+  Truck,
+  Lock
 } from "lucide-react";
 import { useProductStore, type StripeProduct, formatPrice } from '../../../../../lib/product/useProductStore';
 import { useAuthStore } from '../../../../../lib/auth/useAuthStore';
@@ -159,27 +164,23 @@ export default function DashboardProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950 dark:via-pink-950 dark:to-purple-950">
-      {/* Breadcrumb Navigation */}
+      {/* Breadcrumb Navigation (aligned to content width) */}
       <div className="container mx-auto px-4 py-4">
-        <nav className="flex items-center space-x-2 text-sm text-rose-600 dark:text-rose-400">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
-          >
-            Home
-          </button>
-          <span>/</span>
-          <button
-            onClick={() => router.push('/dashboard/products')}
-            className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
-          >
-            Products
-          </button>
-          <span>/</span>
-          <span className="text-rose-900 dark:text-rose-100 font-medium">
-            {product.name}
-          </span>
-        </nav>
+        <div className="max-w-6xl mx-auto">
+          <nav className="flex items-center text-sm text-rose-600 dark:text-rose-400">
+            <button
+              onClick={() => router.push('/dashboard/products')}
+              className="inline-flex items-center gap-1 hover:text-rose-800 dark:hover:text-rose-200 transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              Products
+            </button>
+            <ChevronRight className="w-4 h-4 mx-2 opacity-60" />
+            <span className="text-rose-900 dark:text-rose-100 font-medium truncate">
+              {product.name}
+            </span>
+          </nav>
+        </div>
       </div>
 
       {/* Product Detail Section */}
@@ -305,6 +306,22 @@ export default function DashboardProductDetailPage() {
                   <p className="text-rose-700 dark:text-rose-300 leading-relaxed">
                     {productDescription || 'No description available for this product.'}
                   </p>
+                </div>
+
+                {/* Highlights / Trust indicators */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="flex items-center gap-2 rounded-lg bg-white/70 dark:bg-rose-900/30 border border-rose-200/70 dark:border-rose-800 px-3 py-2">
+                    <ShieldCheck className="w-4 h-4 text-green-600" />
+                    <span className="text-xs text-rose-700 dark:text-rose-300">Handmade Quality</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg bg-white/70 dark:bg-rose-900/30 border border-rose-200/70 dark:border-rose-800 px-3 py-2">
+                    <Truck className="w-4 h-4 text-indigo-600" />
+                    <span className="text-xs text-rose-700 dark:text-rose-300">Ships 3-5 days</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg bg-white/70 dark:bg-rose-900/30 border border-rose-200/70 dark:border-rose-800 px-3 py-2">
+                    <Lock className="w-4 h-4 text-pink-600" />
+                    <span className="text-xs text-rose-700 dark:text-rose-300">Secure checkout</span>
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
