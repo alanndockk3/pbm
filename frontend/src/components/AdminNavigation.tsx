@@ -10,7 +10,6 @@ import {
   ShoppingCart, 
   Users, 
   BarChart3, 
-  Settings,
   LogOut,
   X,
   ChevronRight,
@@ -48,12 +47,6 @@ export function AdminNavigation() {
         { path: '/admin/subscriptions', label: 'Email Subscriptions', icon: Mail },
       ]
     },
-    {
-      title: "System",
-      items: [
-        { path: '/admin/settings', label: 'Settings', icon: Settings },
-      ]
-    }
   ];
 
   const isActivePath = (path: string) => {
