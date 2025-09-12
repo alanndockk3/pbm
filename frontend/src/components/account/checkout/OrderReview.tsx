@@ -151,7 +151,7 @@ export const OrderReview = () => {
     totals, 
     items
   } = useCheckoutStore();
-  const { shippingRates, isLoading: shippingRatesLoading } = useShippingRates();
+  const { shippingRates, isLoading: shippingRatesLoading, error: shippingRatesError, refetch: refetchShippingRates } = useShippingRates();
   
   const [paymentState, setPaymentState] = useState<PaymentState>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -164,6 +164,11 @@ export const OrderReview = () => {
 
     if (shippingRatesLoading) {
       setErrorMessage('Shipping rates are still loading. Please wait and try again.');
+      return;
+    }
+
+    if (shippingRatesError) {
+      setErrorMessage(`Shipping rates error: ${shippingRatesError}. Please try again or contact support.`);
       return;
     }
 
@@ -258,8 +263,6 @@ export const OrderReview = () => {
       const shippingOptions = validShippingRates.map(rate => ({
         shipping_rate: rate.id
       }));
-      
-      console.log('🚚 Shipping options being sent to Stripe:', shippingOptions);
 
       // Call the Stripe checkout API
       const response = await fetch('/api/stripe/checkout', {
@@ -369,13 +372,31 @@ export const OrderReview = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-red-800 dark:text-red-200 text-sm">
                       Something went wrong
                     </p>
                     <p className="text-red-600 dark:text-red-400 text-sm mt-1">
                       {errorMessage}
                     </p>
+                    {shippingRatesError && (
+                      <Button
+                        onClick={refetchShippingRates}
+                        disabled={shippingRatesLoading}
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300"
+                      >
+                        {shippingRatesLoading ? (
+                          <>
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            Retrying...
+                          </>
+                        ) : (
+                          'Retry'
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

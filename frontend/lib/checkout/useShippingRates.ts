@@ -41,11 +41,35 @@ export const useShippingRates = (): UseShippingRatesReturn => {
       const response = await fetch('/api/stripe/shipping-rates?active=true');
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch shipping rates');
+        // Try to parse error response, but handle cases where it's not JSON
+        let errorMessage = 'Failed to fetch shipping rates';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid response format from shipping rates API');
       }
       
       const data = await response.json();
+      
+      // Validate the response structure
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response structure from shipping rates API');
+      }
+      
+      if (!Array.isArray(data.shippingRates)) {
+        throw new Error('Shipping rates data is not an array');
+      }
+      
       setShippingRates(data.shippingRates);
       
     } catch (error) {
