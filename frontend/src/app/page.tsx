@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { LoginModal } from '@/components/login-modal';
 import { SignupModal } from '@/components/signup-modal';
+import { ForgotPasswordModal } from '@/components/forgot-password-modal';
 import { ComingSoonModal } from '@/components/coming-soon-modal';
 import { useAuthStore } from '../../lib/auth/useAuthStore';
 import { useProductStore, useFeaturedProducts } from '../../lib/product/useProductStore';
@@ -38,6 +39,7 @@ export default function Home() {
   const featuredProducts = useFeaturedProducts();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -62,6 +64,16 @@ export default function Home() {
 
   const handleSwitchToLogin = () => {
     setIsSignupOpen(false);
+    setIsLoginOpen(true);
+  };
+
+  const handleOpenForgotPassword = () => {
+    setIsLoginOpen(false);
+    setIsForgotPasswordOpen(true);
+  };
+
+  const handleBackToLogin = () => {
+    setIsForgotPasswordOpen(false);
     setIsLoginOpen(true);
   };
 
@@ -313,11 +325,17 @@ export default function Home() {
         isOpen={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)}
         onSwitchToSignup={handleSwitchToSignup}
+        onOpenForgotPassword={handleOpenForgotPassword}
       />
       <SignupModal 
         isOpen={isSignupOpen} 
         onClose={() => setIsSignupOpen(false)}
         onSwitchToLogin={handleSwitchToLogin}
+      />
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        onBackToLogin={handleBackToLogin}
       />
       {/* <ComingSoonModal 
         isOpen={isSignupOpen} 

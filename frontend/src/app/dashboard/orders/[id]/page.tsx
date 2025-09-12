@@ -95,15 +95,57 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
-const copyToClipboard = (text: string) => {
+const copyToClipboard = (text: string, fieldName: string, setCopiedField: (field: string | null) => void) => {
   navigator.clipboard.writeText(text);
-  // You could add a toast notification here
+  setCopiedField(fieldName);
+  setTimeout(() => setCopiedField(null), 2000);
+};
+
+const TruncatedTextWithCopy = ({ 
+  text, 
+  fieldName, 
+  maxLength = 20, 
+  copiedField, 
+  setCopiedField 
+}: { 
+  text: string; 
+  fieldName: string; 
+  maxLength?: number;
+  copiedField: string | null;
+  setCopiedField: (field: string | null) => void;
+}) => {
+  const truncated = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  const isCopied = copiedField === fieldName;
+  
+  return (
+    <div className="flex items-center gap-2">
+      <span 
+        className="text-rose-900 dark:text-rose-100 font-mono cursor-help truncate flex-1" 
+        title={text}
+      >
+        {truncated}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => copyToClipboard(text, fieldName, setCopiedField)}
+        className="p-1 h-auto text-rose-600 flex-shrink-0"
+      >
+        {isCopied ? (
+          <span className="text-xs text-rose-600">✓</span>
+        ) : (
+          <Copy className="w-3 h-3" />
+        )}
+      </Button>
+    </div>
+  );
 };
 
 export default function OrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { getOrder } = useOrderActions();
+  const [copiedField, setCopiedField] = React.useState<string | null>(null);
   
   const orderId = params.id as string;
   const order = getOrder(orderId);
@@ -179,46 +221,7 @@ export default function OrderDetailPage() {
           {/* Left Column - Order Details */}
           <div className="xl:col-span-2 space-y-6">
             
-            {/* Order Status & Timeline */}
-            <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-lg sm:text-xl text-rose-900 dark:text-rose-100">
-                  Order Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6">
-                <div className="space-y-4">
-                  {order.statusHistory.map((status, index) => {
-                    const config = getStatusConfig(status.status);
-                    const Icon = config.icon;
-                    const isLast = index === order.statusHistory.length - 1;
-                    
-                    return (
-                      <div key={index} className="flex items-start gap-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          isLast ? config.color : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                        }`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                            <h4 className="font-medium text-rose-900 dark:text-rose-100">
-                              {config.label}
-                            </h4>
-                            <span className="text-xs sm:text-sm text-rose-600 dark:text-rose-400 whitespace-nowrap">
-                              {formatDateTime(status.timestamp)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-rose-600 dark:text-rose-400 mt-1">
-                            {status.note || config.description}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+
 
             {/* Order Items */}
             <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
@@ -330,21 +333,60 @@ export default function OrderDetailPage() {
                           <p className="font-medium text-blue-900 dark:text-blue-100">
                             Tracking Number
                           </p>
-                          <p className="text-sm text-blue-700 dark:text-blue-300 break-all">
-                            {order.trackingNumber}
-                          </p>
+                          <div className="mt-1">
+                            <TruncatedTextWithCopy 
+                              text={order.trackingNumber} 
+                              fieldName="trackingNumber" 
+                              maxLength={25}
+                              copiedField={copiedField}
+                              setCopiedField={setCopiedField}
+                            />
+                          </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(order.trackingNumber!)}
-                          className="border-blue-300 text-blue-700 hover:bg-blue-50 flex-shrink-0"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+
+                        {/* Order Status & Timeline */}
+                        <Card className="border-0 shadow-lg bg-white/80 dark:bg-rose-900/20 backdrop-blur-sm">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl text-rose-900 dark:text-rose-100">
+                  Order Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-4">
+                  {order.statusHistory.map((status, index) => {
+                    const config = getStatusConfig(status.status);
+                    const Icon = config.icon;
+                    const isLast = index === order.statusHistory.length - 1;
+                    
+                    return (
+                      <div key={index} className="flex items-start gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isLast ? config.color : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                            <h4 className="font-medium text-rose-900 dark:text-rose-100">
+                              {config.label}
+                            </h4>
+                            <span className="text-xs sm:text-sm text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                              {formatDateTime(status.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-rose-600 dark:text-rose-400 mt-1">
+                            {status.note || config.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -395,36 +437,24 @@ export default function OrderDetailPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-rose-600 dark:text-rose-400">Order Number:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-rose-900 dark:text-rose-100 font-mono">
-                        {order.orderNumber}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(order.orderNumber)}
-                        className="p-1 h-auto text-rose-600"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
+                    <TruncatedTextWithCopy 
+                      text={order.orderNumber} 
+                      fieldName="orderNumber" 
+                      maxLength={15}
+                      copiedField={copiedField}
+                      setCopiedField={setCopiedField}
+                    />
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-rose-600 dark:text-rose-400">Confirmation:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-rose-900 dark:text-rose-100 font-mono">
-                        {order.confirmationNumber}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(order.confirmationNumber)}
-                        className="p-1 h-auto text-rose-600"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
+                    <TruncatedTextWithCopy 
+                      text={order.confirmationNumber} 
+                      fieldName="confirmationNumber" 
+                      maxLength={15}
+                      copiedField={copiedField}
+                      setCopiedField={setCopiedField}
+                    />
                   </div>
                   
                   <div className="flex justify-between">
@@ -438,19 +468,13 @@ export default function OrderDetailPage() {
                   {order.paymentIntentId && (
                     <div className="flex justify-between">
                       <span className="text-rose-600 dark:text-rose-400">Payment ID:</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-rose-900 dark:text-rose-100 font-mono text-xs">
-                          {order.paymentIntentId.slice(-8)}...
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyToClipboard(order.paymentIntentId!)}
-                          className="p-1 h-auto text-rose-600"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                      </div>
+                      <TruncatedTextWithCopy 
+                        text={order.paymentIntentId} 
+                        fieldName="paymentIntentId" 
+                        maxLength={15}
+                        copiedField={copiedField}
+                        setCopiedField={setCopiedField}
+                      />
                     </div>
                   )}
                   

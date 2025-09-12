@@ -10,7 +10,8 @@ import {
   updatePassword as fbUpdatePassword,
   deleteUser as fbDeleteUser,
   EmailAuthProvider,
-  reauthenticateWithCredential
+  reauthenticateWithCredential,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../client/firebaseConfig';
@@ -42,6 +43,7 @@ interface AuthState {
   updateEmail: (newEmail: string, currentPassword: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (currentPassword: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -381,6 +383,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       let message = 'Failed to delete account.';
       if (error.code === 'auth/requires-recent-login') message = 'Please reauthenticate and try again.';
       set({ loading: false, error: message });
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    set({ loading: true, error: null });
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
+      set({ 
+        loading: false, 
+        error: null 
+      });
+      
+      console.log('Password reset email sent successfully to:', email);
+      
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      
+      // Handle specific Firebase errors
+      let errorMessage = 'An error occurred while sending the reset email';
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many requests. Please try again later.';
+          break;
+        default:
+          errorMessage = error.message || 'An unexpected error occurred.';
+      }
+      
+      set({ 
+        loading: false, 
+        error: errorMessage
+      });
     }
   },
 }));

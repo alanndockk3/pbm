@@ -181,22 +181,87 @@ const convertToAdminOrder = async (doc: any, customerId: string): Promise<AdminO
   const sessionShort = (data.stripeSessionId || data.sessionId || doc.id).slice(-4);
   const orderNumber = data.orderNumber || `PBM${timestamp}${sessionShort}`;
   
-  // Determine payment status
+  // Determine payment status - more comprehensive check for Stripe payment statuses
   let paymentStatus: AdminOrder['paymentStatus'] = 'pending';
-  if (data.payment_status === 'paid' || data.status === 'complete' || data.status === 'completed') {
+  
+  // Check various Stripe payment status fields and values
+  const paymentStatusValue = data.payment_status || data.paymentStatus || data.payment_intent_status || data.paymentIntentStatus;
+  const stripeStatus = data.status || data.stripe_status;
+  
+  
+  // Check for paid status - various Stripe statuses that indicate successful payment
+  if (
+    paymentStatusValue === 'paid' || 
+    paymentStatusValue === 'succeeded' ||
+    stripeStatus === 'complete' || 
+    stripeStatus === 'completed' ||
+    stripeStatus === 'paid' ||
+    data.status === 'complete' || 
+    data.status === 'completed' ||
+    data.status === 'paid' ||
+    // Check if amount_total exists and is > 0 (indicates payment was processed)
+    (data.amount_total && data.amount_total > 0) ||
+    (data.amountTotal && data.amountTotal > 0) ||
+    // If order has progressed to shipped/delivered, payment must have been successful
+    data.status === 'shipped' ||
+    data.status === 'delivered' ||
+    data.status === 'processing' ||
+    data.status === 'confirmed'
+  ) {
     paymentStatus = 'paid';
-  } else if (data.payment_status === 'failed') {
+  } else if (paymentStatusValue === 'failed' || stripeStatus === 'failed') {
     paymentStatus = 'failed';
   }
   
-  // Determine order status
+  // Determine order status - more comprehensive check
   let status: AdminOrder['status'] = 'confirmed';
-  if (data.status) {
-    status = data.status;
-  } else if (data.orderStatus) {
-    status = data.orderStatus;
-  } else if (data.payment_status === 'paid') {
+  
+  // Check various order status fields
+  const orderStatusValue = data.status || data.orderStatus || data.order_status;
+  
+  if (orderStatusValue) {
+    // Map various status values to our standard statuses
+    switch (orderStatusValue.toLowerCase()) {
+      case 'pending':
+      case 'pending_payment':
+        status = 'pending';
+        break;
+      case 'confirmed':
+      case 'paid':
+      case 'complete':
+      case 'completed':
+        status = 'confirmed';
+        break;
+      case 'processing':
+      case 'in_progress':
+        status = 'processing';
+        break;
+      case 'shipped':
+      case 'shipping':
+        status = 'shipped';
+        break;
+      case 'delivered':
+      case 'delivery':
+        status = 'delivered';
+        break;
+      case 'cancelled':
+      case 'canceled':
+        status = 'cancelled';
+        break;
+      default:
+        // If payment is successful, default to confirmed
+        if (paymentStatus === 'paid') {
+          status = 'confirmed';
+        } else {
+          status = 'pending';
+        }
+    }
+  } else if (paymentStatus === 'paid') {
+    // If no explicit status but payment is successful, mark as confirmed
     status = 'confirmed';
+  } else {
+    // Default to pending if no status and no payment
+    status = 'pending';
   }
   
   // Parse totals

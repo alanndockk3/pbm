@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToSignup: () => void;
+  onOpenForgotPassword?: () => void;
 }
 
 // Modal Component
@@ -30,9 +31,9 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
   );
 };
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSignup }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSignup, onOpenForgotPassword }) => {
   const router = useRouter();
-  const { login, loading, error, clearError } = useAuthStore();
+  const { login, loading, error, clearError, user } = useAuthStore();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -44,6 +45,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
     email: '',
     password: ''
   });
+
+
+  // Handle successful login - close modal and navigate when user becomes authenticated
+  useEffect(() => {
+    if (user && isOpen) {
+      router.push('/dashboard');
+      onClose();
+      setFormData({
+        email: '',
+        password: '',
+        rememberMe: false
+      });
+    }
+  }, [user, isOpen, router, onClose]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -97,16 +112,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
     try {
       await login(formData.email, formData.password);
       
-      // If login is successful, navigate to dashboard and close modal
-      if (!error) {
-        router.push('/dashboard');
-        onClose();
-        setFormData({
-          email: '',
-          password: '',
-          rememberMe: false
-        });
-      }
+      // The login function will set error state if it fails
+      // We'll let the error display in the modal and only close on success
+      // Success will be handled by the auth state change listener
     } catch (err) {
       // Error handling is done in the store
       console.error('Login failed:', err);
@@ -185,20 +193,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
               )}
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center space-x-2 text-rose-700 dark:text-rose-300">
-                {/* <input 
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={formData.rememberMe}
-                  onChange={handleInputChange}
-                  className="rounded border-rose-300"
-                />
-                <span>Remember me</span> */}
-              </label>
-              {/* <a href="#" className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300">
+            <div className="flex items-center justify-end text-sm">
+              <button 
+                type="button"
+                className="text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 transition-colors"
+                onClick={() => {
+                  if (onOpenForgotPassword) {
+                    onOpenForgotPassword();
+                  }
+                }}
+              >
                 Forgot password?
-              </a> */}
+              </button>
             </div>
 
             <Button 

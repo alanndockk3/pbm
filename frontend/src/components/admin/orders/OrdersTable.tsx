@@ -28,6 +28,7 @@ const TrackingNumberInput = ({
   const [isEditing, setIsEditing] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '');
   const [carrier, setCarrier] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const handleSave = () => {
     if (trackingNumber.trim() && onUpdateTracking) {
@@ -42,9 +43,38 @@ const TrackingNumberInput = ({
     setIsEditing(false);
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
-    // You could add a toast notification here
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const TruncatedTextWithCopy = ({ text, fieldName, maxLength = 15 }: { text: string; fieldName: string; maxLength?: number }) => {
+    const truncated = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    const isCopied = copiedField === fieldName;
+    
+    return (
+      <div className="flex items-center gap-1">
+        <span 
+          className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded cursor-help truncate flex-1" 
+          title={text}
+        >
+          {truncated}
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => copyToClipboard(text, fieldName)}
+          className="p-1 h-6 w-6 flex-shrink-0"
+        >
+          {isCopied ? (
+            <span className="text-xs text-rose-600">✓</span>
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+        </Button>
+      </div>
+    );
   };
 
   if (!isEditing && !order.trackingNumber) {
@@ -70,18 +100,7 @@ const TrackingNumberInput = ({
   if (!isEditing && order.trackingNumber) {
     return (
       <div className="flex items-center gap-1">
-        <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-          {order.trackingNumber}
-        </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => copyToClipboard(order.trackingNumber!)}
-          disabled={updatingOrders?.has(order.id)}
-          className="p-1 h-6 w-6 disabled:opacity-50"
-        >
-          <Copy className="w-3 h-3" />
-        </Button>
+        <TruncatedTextWithCopy text={order.trackingNumber} fieldName={`tracking-${order.id}`} maxLength={15} />
         <Button
           size="sm"
           variant="ghost"

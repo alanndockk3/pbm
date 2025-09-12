@@ -335,7 +335,13 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         email: (session as any).customer_details?.email || metadata.customerEmail || '',
       },
       shippingMethod: metadata.shippingMethod || 'Standard Shipping',
-      estimatedDelivery: metadata.estimatedDeliveryDays || '5-7 days',
+      estimatedDelivery: (() => {
+        // Calculate proper estimated delivery date
+        const deliveryDays = metadata.estimatedDeliveryDays 
+          ? parseInt(metadata.estimatedDeliveryDays.split('-')[1] || '7')
+          : 7;
+        return new Date(Date.now() + deliveryDays * 24 * 60 * 60 * 1000).toISOString();
+      })(),
       paymentMethod: 'Stripe Checkout',
       paymentIntentId: session.payment_intent as string,
       totals: {

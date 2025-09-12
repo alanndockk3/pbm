@@ -35,6 +35,7 @@ export function OrderDetailsModal({
   const [isEditingTracking, setIsEditingTracking] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   if (!isOpen || !order) return null;
 
@@ -47,9 +48,10 @@ export function OrderDetailsModal({
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
-    // You could add a toast notification here
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const formatAddress = (address: AdminOrder['shippingAddress']) => {
@@ -65,6 +67,34 @@ export function OrderDetailsModal({
   const openInMaps = () => {
     const address = `${order.shippingAddress.address1}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zipCode}`;
     window.open(`https://maps.google.com?q=${encodeURIComponent(address)}`, '_blank');
+  };
+
+  const TruncatedTextWithCopy = ({ text, fieldName, maxLength = 20 }: { text: string; fieldName: string; maxLength?: number }) => {
+    const truncated = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    const isCopied = copiedField === fieldName;
+    
+    return (
+      <div className="flex items-center gap-2">
+        <span 
+          className="text-xs font-mono cursor-help truncate flex-1" 
+          title={text}
+        >
+          {truncated}
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => copyToClipboard(text, fieldName)}
+          className="p-1 h-6 w-6 flex-shrink-0"
+        >
+          {isCopied ? (
+            <span className="text-xs text-rose-600">✓</span>
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -96,9 +126,23 @@ export function OrderDetailsModal({
                   })}
                 </p>
                 {order.sessionId && (
-                  <Badge variant="secondary" className="font-mono text-xs">
-                    Session: {order.sessionId.slice(-8)}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="font-mono text-xs">
+                      Session: {order.sessionId.slice(-8)}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(order.sessionId!, 'headerSessionId')}
+                      className="p-1 h-5 w-5"
+                    >
+                      {copiedField === 'headerSessionId' ? (
+                        <span className="text-xs text-rose-600">✓</span>
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -112,8 +156,8 @@ export function OrderDetailsModal({
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             
             {/* Left Column - Order Info */}
             <div className="lg:col-span-2 space-y-6">
@@ -129,18 +173,8 @@ export function OrderDetailsModal({
                   {order.trackingNumber && (
                     <div className="text-sm">
                       <p className="text-gray-600 dark:text-gray-400 mb-1">Tracking Number:</p>
-                      <div className="flex items-center gap-2">
-                        <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">
-                          {order.trackingNumber}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => copyToClipboard(order.trackingNumber!)}
-                          className="p-1 h-6 w-6"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
+                      <div className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                        <TruncatedTextWithCopy text={order.trackingNumber} fieldName="trackingNumber" maxLength={20} />
                       </div>
                     </div>
                   )}
@@ -149,9 +183,10 @@ export function OrderDetailsModal({
                   <h3 className="font-semibold text-gray-900 dark:text-white">Payment Status</h3>
                   <PaymentStatusBadge status={order.paymentStatus} />
                   {order.paymentIntentId && (
-                    <p className="text-xs text-gray-500 font-mono">
-                      Payment ID: {order.paymentIntentId.slice(-12)}
-                    </p>
+                    <div className="text-xs">
+                      <p className="text-gray-500 mb-1">Payment ID:</p>
+                      <TruncatedTextWithCopy text={order.paymentIntentId} fieldName="paymentIntentId" maxLength={20} />
+                    </div>
                   )}
                 </div>
               </div>
@@ -210,10 +245,14 @@ export function OrderDetailsModal({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => copyToClipboard(formatAddress(order.shippingAddress))}
+                        onClick={() => copyToClipboard(formatAddress(order.shippingAddress), 'shippingAddress')}
                         className="shrink-0"
                       >
-                        <Copy className="w-4 h-4" />
+                        {copiedField === 'shippingAddress' ? (
+                          <span className="text-xs text-rose-600">✓</span>
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </Button>
                       <Button
                         size="sm"
@@ -266,7 +305,7 @@ export function OrderDetailsModal({
             </div>
 
             {/* Right Column - Summary & Actions */}
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               
               {/* Order Summary */}
               <div className="space-y-3">
@@ -303,12 +342,30 @@ export function OrderDetailsModal({
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Estimated Delivery:</p>
                     <p className="font-medium">
-                      {new Date(order.estimatedDelivery).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      {(() => {
+                        try {
+                          // Handle both Date objects and date strings
+                          const deliveryDate = order.estimatedDelivery instanceof Date 
+                            ? order.estimatedDelivery 
+                            : new Date(order.estimatedDelivery);
+                          
+                          // Check if the date is valid
+                          if (isNaN(deliveryDate.getTime())) {
+                            // If it's not a valid date, it might be a string like "5-7 days"
+                            return String(order.estimatedDelivery);
+                          }
+                          
+                          return deliveryDate.toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          });
+                        } catch (error) {
+                          // Fallback to displaying the raw value
+                          return String(order.estimatedDelivery);
+                        }
+                      })()}
                     </p>
                   </div>
                 </div>
@@ -326,17 +383,8 @@ export function OrderDetailsModal({
                       {order.trackingNumber ? (
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tracking Number:</p>
-                          <div className="flex items-center gap-2">
-                            <code className="bg-white dark:bg-gray-700 px-2 py-1 rounded text-sm flex-1">
-                              {order.trackingNumber}
-                            </code>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => copyToClipboard(order.trackingNumber!)}
-                            >
-                              <Copy className="w-4 h-4" />
-                            </Button>
+                          <div className="bg-white dark:bg-gray-700 px-2 py-1 rounded">
+                            <TruncatedTextWithCopy text={order.trackingNumber} fieldName="trackingNumber2" maxLength={20} />
                           </div>
                         </div>
                       ) : (
@@ -500,13 +548,17 @@ ${order.shippingAddress.country}
                         }
                       };
                       
-                      copyToClipboard(JSON.stringify(orderData, null, 2));
+                      copyToClipboard(JSON.stringify(orderData, null, 2), 'orderData');
                       // You could show a toast notification here
                       console.log('Order data copied to clipboard');
                     }}
                   >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy Order Data
+                    {copiedField === 'orderData' ? (
+                      <span className="text-xs text-rose-600 mr-2">✓</span>
+                    ) : (
+                      <Copy className="w-4 h-4 mr-2" />
+                    )}
+                    {copiedField === 'orderData' ? 'Copied!' : 'Copy Order Data'}
                   </Button>
                 </div>
               </div>
@@ -565,7 +617,25 @@ ${order.shippingAddress.country}
                       <div>
                         <p className="text-sm font-medium text-gray-500">Expected Delivery</p>
                         <p className="text-xs text-gray-400">
-                          {new Date(order.estimatedDelivery).toLocaleDateString()}
+                          {(() => {
+                            try {
+                              // Handle both Date objects and date strings
+                              const deliveryDate = order.estimatedDelivery instanceof Date 
+                                ? order.estimatedDelivery 
+                                : new Date(order.estimatedDelivery);
+                              
+                              // Check if the date is valid
+                              if (isNaN(deliveryDate.getTime())) {
+                                // If it's not a valid date, it might be a string like "5-7 days"
+                                return String(order.estimatedDelivery);
+                              }
+                              
+                              return deliveryDate.toLocaleDateString();
+                            } catch (error) {
+                              // Fallback to displaying the raw value
+                              return String(order.estimatedDelivery);
+                            }
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -589,13 +659,35 @@ ${order.shippingAddress.country}
               {process.env.NODE_ENV === 'development' && (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-gray-900 dark:text-white text-sm">🔧 Tech Info</h3>
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-xs font-mono space-y-1">
-                    <p>Order ID: {order.id}</p>
-                    <p>Customer ID: {order.customerId}</p>
-                    {order.sessionId && <p>Session: {order.sessionId}</p>}
-                    {order.paymentIntentId && <p>Payment: {order.paymentIntentId}</p>}
-                    <p>Created: {order.orderDate.toISOString()}</p>
-                    <p>Updated: {order.updatedDate.toISOString()}</p>
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-xs space-y-3">
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 block mb-1">Order ID:</span>
+                      <TruncatedTextWithCopy text={order.id} fieldName="orderId" maxLength={25} />
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 block mb-1">Customer ID:</span>
+                      <TruncatedTextWithCopy text={order.customerId} fieldName="customerId" maxLength={25} />
+                    </div>
+                    {order.sessionId && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Session:</span>
+                        <TruncatedTextWithCopy text={order.sessionId} fieldName="sessionId" maxLength={25} />
+                      </div>
+                    )}
+                    {order.paymentIntentId && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Payment:</span>
+                        <TruncatedTextWithCopy text={order.paymentIntentId} fieldName="paymentIntentId" maxLength={25} />
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 block mb-1">Created:</span>
+                      <span className="text-xs font-mono">{order.orderDate.toISOString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 block mb-1">Updated:</span>
+                      <span className="text-xs font-mono">{order.updatedDate.toISOString()}</span>
+                    </div>
                   </div>
                 </div>
               )}

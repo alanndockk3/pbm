@@ -1,5 +1,5 @@
 // components/auth/signup-modal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Sparkles, X, Mail, Lock, User, AlertCircle, Loader2 } from "lucide-react";
@@ -33,7 +33,7 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
 };
 
 export const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLogin }) => {
-  const { signup, loading, error, clearError } = useAuthStore();
+  const { signup, loading, error, clearError, user } = useAuthStore();
   
   // Legal modals state
   const [tosModalOpen, setTosModalOpen] = useState(false);
@@ -52,6 +52,19 @@ export const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwi
     password: '',
     terms: ''
   });
+
+  // Handle successful signup - close modal when user becomes authenticated
+  useEffect(() => {
+    if (user && isOpen) {
+      onClose();
+      setFormData({
+        fullName: '',
+        email: '',
+        password: '',
+        agreeToTerms: false
+      });
+    }
+  }, [user, isOpen, onClose]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -117,16 +130,9 @@ export const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwi
     try {
       await signup(formData.email, formData.password, formData.fullName);
       
-      // If signup is successful, close modal and reset form
-      if (!error) {
-        onClose();
-        setFormData({
-          fullName: '',
-          email: '',
-          password: '',
-          agreeToTerms: false
-        });
-      }
+      // The signup function will set error state if it fails
+      // We'll let the error display in the modal and only close on success
+      // Success will be handled by the auth state change listener
     } catch (err) {
       // Error handling is done in the store
       console.error('Signup failed:', err);

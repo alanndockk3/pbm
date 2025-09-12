@@ -10,6 +10,7 @@ import {
 
 interface Order {
   id: string;
+  orderNumber?: string;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   total: number;
@@ -24,7 +25,14 @@ export function OrderStats({ orders }: OrderStatsProps) {
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
   const processingOrders = orders.filter(o => o.status === 'processing').length;
   const shippedOrders = orders.filter(o => o.status === 'shipped').length;
-  const totalRevenue = orders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + o.total, 0);
+  
+  // More inclusive revenue calculation - include orders that are confirmed, processing, shipped, or delivered
+  // regardless of payment status, as these represent completed transactions
+  const totalRevenue = orders.filter(o => 
+    ['confirmed', 'processing', 'shipped', 'delivered'].includes(o.status) && 
+    o.total > 0
+  ).reduce((sum, o) => sum + o.total, 0);
+  
 
   const stats = [
     {

@@ -18,7 +18,10 @@ export const metadata: Metadata = {
   title: "Pretties by Marg",
   description: "Handcrafted each item",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.ico", type: "image/x-icon" },
+    ],
   },
 };
 
